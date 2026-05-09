@@ -1,12 +1,12 @@
 # CityLine
 
-CityLine is an immersive civic resilience prototype based on the local PRD. It opens with a scroll-driven 3D NYC flood sequence and transitions into a command view for neighborhood risk, safe routes, shelters, infrastructure status, and emergency actions.
+CityLine is an immersive civic resilience prototype based on the local PRD. It is now a Next.js landing page with a fixed React Three Fiber canvas, Lenis smooth scrolling, and GSAP ScrollTrigger choreography for a heavy, dreamy 3D flood-route experience.
 
 ## Run
 
 ```bash
 npm install
-npm run dev
+./run.sh
 ```
 
 ## Verify
@@ -16,13 +16,14 @@ npm run build
 npm run verify:visual
 ```
 
-`npm run verify:visual` captures desktop and mobile screenshots into `artifacts/` and checks the WebGL canvas has nonblank rendered pixels.
+`npm run verify:visual` captures desktop and mobile screenshots into `artifacts/` and checks the R3F canvas has nonblank rendered pixels across the hero, story, command, and layer scroll stops.
 
 ## Current Prototype Scope
 
-- Full-bleed Three.js city scene
-- Scroll-driven flood progression
-- Cinematic neighborhood reveal
-- Curated Address -> Risk -> Route -> Act flow
-- Emergency HUD, hazard layers, infrastructure status, shelter routing, and scenario controls
-- Desktop-first layout with simplified mobile resident mode
+- Next.js App Router
+- React Three Fiber / Drei low-poly civic route model
+- GSAP ScrollTrigger text and camera-feel sequencing
+- Lenis smooth scroll for slower cinematic movement
+- Fixed 3D canvas behind pointer-transparent overlays
+- Command simulator with subject controls, flood playback, and hazard layer cards
+- Desktop and mobile visual verification
