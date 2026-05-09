@@ -74,6 +74,9 @@ export default function Page() {
     sim: 0.08,
     isMobile: false,
   });
+  const [isSceneReady, setIsSceneReady] = useState(false);
+  const [loaderProgress, setLoaderProgress] = useState(0);
+  const [isLoaderDismissed, setIsLoaderDismissed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(neighborhoods[0].id);
 
@@ -84,6 +87,21 @@ export default function Page() {
     updateMobile();
     window.addEventListener("resize", updateMobile);
     return () => window.removeEventListener("resize", updateMobile);
+  }, []);
+
+  useEffect(() => {
+    const fallbackReady = window.setTimeout(() => setIsSceneReady(true), 900);
+    return () => window.clearTimeout(fallbackReady);
+  }, []);
+
+  useEffect(() => {
+    const forceComplete = window.setTimeout(() => setLoaderProgress(100), 900);
+    const forceDismiss = window.setTimeout(() => setIsLoaderDismissed(true), 1450);
+
+    return () => {
+      window.clearTimeout(forceComplete);
+      window.clearTimeout(forceDismiss);
+    };
   }, []);
 
   useEffect(() => {
@@ -178,6 +196,27 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
+    if (isLoaderDismissed) return;
+
+    const interval = window.setInterval(() => {
+      setLoaderProgress((current) => {
+        if (current >= 100) return 100;
+        const step = isSceneReady ? 9 : 4.4;
+        return Math.min(100, current + step);
+      });
+    }, 42);
+
+    return () => window.clearInterval(interval);
+  }, [isLoaderDismissed, isSceneReady]);
+
+  useEffect(() => {
+    if (loaderProgress < 100) return;
+
+    const timeout = window.setTimeout(() => setIsLoaderDismissed(true), 420);
+    return () => window.clearTimeout(timeout);
+  }, [loaderProgress]);
+
+  useEffect(() => {
     if (!isPlaying) return;
 
     const interval = window.setInterval(() => {
@@ -200,11 +239,37 @@ export default function Page() {
   const photoTransform = `translate3d(${motion.mouseX * -26 - motion.scroll * 118}px, ${
     motion.mouseY * -14 - motion.scroll * 28
   }px, 0) scale(${1.1 + motion.scroll * 0.16})`;
+  const sceneStyle = {
+    "--mx": motion.mouseX.toFixed(4),
+    "--my": motion.mouseY.toFixed(4),
+    "--scroll": motion.scroll.toFixed(4),
+    "--parallax-x": `${motion.mouseX * 18}px`,
+    "--parallax-y": `${motion.mouseY * 12}px`,
+    "--reverse-parallax-x": `${motion.mouseX * -24}px`,
+    "--reverse-parallax-y": `${motion.mouseY * -14}px`,
+  } as React.CSSProperties;
 
   return (
-    <main ref={pageRef} className="cityline-next" onPointerMove={handlePointerMove}>
+    <main ref={pageRef} className="cityline-next" style={sceneStyle} onPointerMove={handlePointerMove}>
+      {!isLoaderDismissed && (
+        <div className={`city-loader ${loaderProgress >= 100 ? "is-exiting" : ""}`} role="status" aria-live="polite">
+          <div className="loader-card">
+            <span className="loader-eyebrow">CityLine initializing</span>
+            <strong>{Math.round(loaderProgress).toString().padStart(2, "0")}%</strong>
+            <div className="loader-track" aria-hidden="true">
+              <span style={{ transform: `scaleX(${loaderProgress / 100})` }} />
+            </div>
+            <p>Loading flood route, Seaport city stage, and emergency layers.</p>
+          </div>
+        </div>
+      )}
       <div className="city-photo-layer" style={{ transform: photoTransform }} aria-hidden="true" />
       <div className="gradient-backdrop" aria-hidden="true" />
+      <div className="motion-field" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
       <div className="canvas-layer">
         <Canvas
           data-cityline-canvas="true"
@@ -213,6 +278,7 @@ export default function Page() {
           gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
           onCreated={({ gl }) => {
             gl.domElement.dataset.citylineCanvas = "true";
+            setIsSceneReady(true);
           }}
         >
           <CinematicScene motion={motion} selectedNeighborhoodId={selectedNeighborhood} />
@@ -254,7 +320,7 @@ export default function Page() {
 
       <section id="story" className="story-section overlay-section" aria-label="Scroll story">
         {storyPanels.map((panel) => (
-          <article className="story-panel glass-copy" key={panel.eyebrow}>
+          <article className="story-panel glass-copy interactive-panel" key={panel.eyebrow}>
             <span>{panel.eyebrow}</span>
             <h2>{panel.title}</h2>
             <p>{panel.body}</p>
@@ -270,7 +336,7 @@ export default function Page() {
         </div>
 
         <div className="command-grid">
-          <aside className="command-card control-stack">
+          <aside className="command-card control-stack interactive-panel">
             <div className="panel-title">
               <Crosshair size={18} />
               Subject
@@ -295,7 +361,7 @@ export default function Page() {
             </div>
           </aside>
 
-          <section className="command-card simulator-copy">
+          <section className="command-card simulator-copy interactive-panel">
             <div className="simulator-status">
               <Metric label="Flood rise" value={`${Math.round(motion.flood * 100)}%`} />
               <Metric label="Route confidence" value={`${Math.round(motion.route * 88)}%`} />
@@ -311,7 +377,7 @@ export default function Page() {
             </button>
           </section>
 
-          <aside className="command-card action-stack">
+          <aside className="command-card action-stack interactive-panel">
             <div className="panel-title">
               <Navigation size={18} />
               Helpful actions
@@ -331,7 +397,11 @@ export default function Page() {
           {hazards.map((hazard) => {
             const Icon = hazard.icon;
             return (
-              <article className="command-card layer-card" key={hazard.id} style={{ "--accent": hazard.accent } as React.CSSProperties}>
+              <article
+                className="command-card layer-card interactive-panel"
+                key={hazard.id}
+                style={{ "--accent": hazard.accent } as React.CSSProperties}
+              >
                 <Icon size={24} />
                 <span>{hazard.severity}</span>
                 <h3>{hazard.name}</h3>
