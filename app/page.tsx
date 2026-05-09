@@ -171,11 +171,10 @@ export default function Page() {
     gsap.utils.toArray<HTMLElement>(".command-card").forEach((card, index) => {
       gsap.fromTo(
         card,
-        { autoAlpha: 0, y: 72 },
+        { autoAlpha: 0 },
         {
           autoAlpha: 1,
-          y: 0,
-          duration: 1,
+          duration: 0.36,
           delay: index * 0.04,
           ease: "power2.out",
           scrollTrigger: {
