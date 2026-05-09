@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, Float, Html, MeshTransmissionMaterial, PerspectiveCamera } from "@react-three/drei";
+import { ContactShadows, Float, MeshTransmissionMaterial, PerspectiveCamera, useTexture } from "@react-three/drei";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -121,7 +121,7 @@ export default function Page() {
     gsap.utils.toArray<HTMLElement>(".story-panel").forEach((panel) => {
       gsap.fromTo(
         panel,
-        { autoAlpha: 0, y: 96, filter: "blur(10px)" },
+        { autoAlpha: 0, y: 72, filter: "blur(3px)" },
         {
           autoAlpha: 1,
           y: 0,
@@ -130,8 +130,8 @@ export default function Page() {
           ease: "power3.out",
           scrollTrigger: {
             trigger: panel,
-            start: "top 82%",
-            end: "top 42%",
+            start: "top 94%",
+            end: "top 54%",
             scrub: 1.2,
           },
         },
@@ -139,12 +139,12 @@ export default function Page() {
       gsap.to(panel, {
         autoAlpha: 0,
         y: -88,
-        filter: "blur(8px)",
+        filter: "blur(3px)",
         ease: "power2.inOut",
         scrollTrigger: {
           trigger: panel,
-          start: "bottom 76%",
-          end: "bottom 34%",
+          start: "bottom 62%",
+          end: "bottom 24%",
           scrub: 1.2,
         },
       });
@@ -197,9 +197,13 @@ export default function Page() {
   };
 
   const selected = neighborhoods.find((item) => item.id === selectedNeighborhood) ?? neighborhoods[0];
+  const photoTransform = `translate3d(${motion.mouseX * -26 - motion.scroll * 118}px, ${
+    motion.mouseY * -14 - motion.scroll * 28
+  }px, 0) scale(${1.1 + motion.scroll * 0.16})`;
 
   return (
     <main ref={pageRef} className="cityline-next" onPointerMove={handlePointerMove}>
+      <div className="city-photo-layer" style={{ transform: photoTransform }} aria-hidden="true" />
       <div className="gradient-backdrop" aria-hidden="true" />
       <div className="canvas-layer">
         <Canvas
@@ -238,8 +242,8 @@ export default function Page() {
           <p className="kicker">Flash flood warning / South Street Seaport</p>
           <h1>CityLine Flood Run</h1>
           <p className="hero-body">
-            A cinematic civic-resilience landing page where the 3D object floats behind the story, then becomes an
-            interactive flood escape simulator.
+            A cinematic civic-resilience landing page where a real NYC skyline becomes a scroll-controlled flood story,
+            then resolves into an interactive escape simulator.
           </p>
           <div className="hero-actions">
             <a href="#command">Open simulator</a>
@@ -340,7 +344,7 @@ export default function Page() {
           <Building2 size={22} />
           <p>
             Built with Next.js, React Three Fiber, GSAP ScrollTrigger, and Lenis to demonstrate cinematic interaction,
-            practical civic UX, and optimized low-poly 3D storytelling.
+            practical civic UX, and high-resolution city-backed 3D storytelling.
           </p>
           <ArrowUpRight size={22} />
         </div>
@@ -367,18 +371,18 @@ function CinematicScene({
 }) {
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 2.4, 8.4]} fov={motion.isMobile ? 48 : 42} />
-      <color attach="background" args={["#030407"]} />
-      <fog attach="fog" args={["#061014", 7, 22]} />
-      <ambientLight intensity={0.55} color="#b8dfff" />
-      <directionalLight position={[-4, 8, 5]} intensity={3.2} castShadow shadow-mapSize={[1024, 1024]} />
-      <spotLight position={[4, 7, 7]} angle={0.42} penumbra={0.8} intensity={68} color="#52fff1" castShadow />
-      <pointLight position={[-3.8, 2, 1.6]} intensity={34} color="#ff3fb4" />
-      <pointLight position={[4, 2.2, -2.2]} intensity={24} color="#ffc857" />
-      <Float speed={1.15} rotationIntensity={0.22} floatIntensity={0.32}>
+      <PerspectiveCamera makeDefault position={[0, 2.15, 7.6]} fov={motion.isMobile ? 50 : 41} />
+      <color attach="background" args={["#f8cf9c"]} />
+      <fog attach="fog" args={["#ffe2b7", 9, 22]} />
+      <ambientLight intensity={1.15} color="#fff0d0" />
+      <directionalLight position={[-5, 7, 5]} intensity={3.8} color="#fff1c6" castShadow shadow-mapSize={[1024, 1024]} />
+      <spotLight position={[4, 6.8, 6]} angle={0.42} penumbra={0.82} intensity={48} color="#ff4f87" castShadow />
+      <pointLight position={[-3.8, 2, 1.6]} intensity={30} color="#6e4bff" />
+      <pointLight position={[4, 2.2, -1.8]} intensity={22} color="#ffd84d" />
+      <Float speed={0.82} rotationIntensity={0.1} floatIntensity={0.18}>
         <CitylineObject motion={motion} selectedNeighborhoodId={selectedNeighborhoodId} />
       </Float>
-      <ContactShadows position={[0, -1.36, 0]} opacity={0.52} scale={16} blur={2.8} far={7} />
+      <ContactShadows position={[0, -1.34, 0]} opacity={0.34} scale={16} blur={3.4} far={7} color="#5e335f" />
     </>
   );
 }
@@ -391,20 +395,49 @@ function CitylineObject({
   selectedNeighborhoodId: string;
 }) {
   const groupRef = useRef<THREE.Group>(null);
+  const photoRef = useRef<THREE.Group>(null);
   const routeRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Mesh>(null);
   const subjectRef = useRef<THREE.Group>(null);
   const target = neighborhoods.find((item) => item.id === selectedNeighborhoodId) ?? neighborhoods[0];
-  const towers = useMemo(() => buildTowerSet(motion.isMobile ? 18 : 42), [motion.isMobile]);
+  const cityTexture = useTexture("/assets/south-street-seaport.jpg");
+  const streetSegments = useMemo(() => Array.from({ length: motion.isMobile ? 5 : 9 }), [motion.isMobile]);
+
+  useEffect(() => {
+    cityTexture.colorSpace = THREE.SRGBColorSpace;
+    cityTexture.anisotropy = 12;
+    cityTexture.needsUpdate = true;
+  }, [cityTexture]);
 
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
+    const cameraTarget = new THREE.Vector3(
+      THREE.MathUtils.lerp(-0.72, 1.24, motion.scroll) + motion.mouseX * 0.22,
+      THREE.MathUtils.lerp(2.04, 1.18, motion.scroll) - motion.mouseY * 0.12,
+      THREE.MathUtils.lerp(motion.isMobile ? 8.1 : 7.2, motion.isMobile ? 5.85 : 4.8, motion.scroll),
+    );
+    state.camera.position.lerp(cameraTarget, 0.055);
+    state.camera.lookAt(
+      THREE.MathUtils.lerp(-0.1, 0.54, motion.scroll),
+      THREE.MathUtils.lerp(0.52, -0.14, motion.scroll),
+      THREE.MathUtils.lerp(-1.4, 0.18, motion.scroll),
+    );
+
     if (groupRef.current) {
-      const zoom = THREE.MathUtils.lerp(1, motion.isMobile ? 1.38 : 1.72, motion.scroll);
+      const zoom = THREE.MathUtils.lerp(1, motion.isMobile ? 1.2 : 1.32, motion.scroll);
       groupRef.current.scale.lerp(new THREE.Vector3(zoom, zoom, zoom), 0.08);
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, motion.scroll * Math.PI * 1.45 + motion.mouseX * 0.34, 0.08);
-      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -0.18 + motion.mouseY * 0.18, 0.08);
-      groupRef.current.position.y = Math.sin(elapsed * 0.55) * 0.08 - motion.scroll * 0.22;
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(
+        groupRef.current.rotation.y,
+        -0.14 + motion.scroll * 0.62 + motion.mouseX * 0.14,
+        0.08,
+      );
+      groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -0.1 + motion.mouseY * 0.08, 0.08);
+      groupRef.current.position.y = Math.sin(elapsed * 0.42) * 0.04 - motion.scroll * 0.12;
+    }
+
+    if (photoRef.current) {
+      photoRef.current.position.x = THREE.MathUtils.lerp(photoRef.current.position.x, -motion.scroll * 0.85 + motion.mouseX * 0.2, 0.06);
+      photoRef.current.position.y = THREE.MathUtils.lerp(photoRef.current.position.y, 0.18 - motion.scroll * 0.18, 0.06);
     }
 
     if (routeRef.current) {
@@ -428,113 +461,91 @@ function CitylineObject({
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
-      <group position={[0, -0.22, 0]}>
-        <mesh castShadow receiveShadow rotation={[0, Math.PI / 4, 0]}>
-          <boxGeometry args={[5.2, 0.32, 5.2]} />
-          <meshStandardMaterial color="#0b1118" metalness={0.36} roughness={0.42} />
+      <group ref={photoRef}>
+        <mesh position={[0, 0.96, -3.05]} scale={[7.2, 4.8, 1]}>
+          <planeGeometry args={[1, 1, 80, 8]} />
+          <meshBasicMaterial map={cityTexture} toneMapped={false} transparent opacity={0.98} />
         </mesh>
+        <mesh position={[0, -1.12, -1.74]} rotation={[Math.PI, 0, 0]} scale={[7.1, 1.38, 1]}>
+          <planeGeometry args={[1, 1, 80, 8]} />
+          <meshBasicMaterial map={cityTexture} toneMapped={false} transparent opacity={0.16} />
+        </mesh>
+      </group>
+
+      <group position={[0, -0.56, 0.18]}>
+        <mesh castShadow receiveShadow rotation={[0, 0.06, 0]}>
+          <boxGeometry args={[6.1, 0.22, 3.75]} />
+          <meshPhysicalMaterial
+            color="#fff1ce"
+            metalness={0.08}
+            roughness={0.32}
+            emissive="#ff7a9d"
+            emissiveIntensity={0.025}
+            transparent
+            opacity={0.5}
+          />
+        </mesh>
+        {streetSegments.map((_, index) => (
+          <mesh key={index} position={[-2.72 + index * 0.68, -0.08, 0.08]} rotation={[0, 0.06, 0]}>
+            <boxGeometry args={[0.035, 0.032, 3.52]} />
+            <meshStandardMaterial
+              color={index % 3 === 0 ? "#ff4f87" : "#6e4bff"}
+              emissive={index % 3 === 0 ? "#ff4f87" : "#6e4bff"}
+              emissiveIntensity={0.48}
+            />
+          </mesh>
+        ))}
+        {streetSegments.slice(0, 6).map((_, index) => (
+          <mesh key={`cross-${index}`} position={[0.02, -0.055, -1.32 + index * 0.55]} rotation={[0, 0.06, 0]}>
+            <boxGeometry args={[5.66, 0.026, 0.036]} />
+            <meshStandardMaterial
+              color={index % 2 === 0 ? "#59d7ff" : "#ffd84d"}
+              emissive={index % 2 === 0 ? "#59d7ff" : "#ffd84d"}
+              emissiveIntensity={0.36}
+            />
+          </mesh>
+        ))}
         <mesh ref={waterRef} rotation={[-Math.PI / 2, 0, Math.PI / 4]} position={[0, -1.05, 0]}>
-          <circleGeometry args={[3.7, 72]} />
+          <circleGeometry args={[3.95, 96]} />
           <MeshTransmissionMaterial
-            color="#24dcff"
-            roughness={0.12}
+            color="#59d7ff"
+            roughness={0.08}
             metalness={0.04}
             transparent
             opacity={0.28}
-            thickness={0.4}
-            transmission={0.42}
+            thickness={0.52}
+            transmission={0.5}
           />
         </mesh>
       </group>
 
-      <group position={[0, -0.08, 0]}>
-        {towers.map((tower) => (
-          <BuildingTower key={tower.id} {...tower} />
-        ))}
-      </group>
-
       <group ref={routeRef} position={[-1.9, -0.62, 0.56]} scale={[0.2, 1, 1]}>
         <mesh castShadow>
-          <boxGeometry args={[3.9, 0.08, 0.12]} />
-          <meshStandardMaterial color="#52fff1" emissive="#52fff1" emissiveIntensity={1.2} />
+          <boxGeometry args={[3.9, 0.075, 0.12]} />
+          <meshStandardMaterial color="#fff7c7" emissive="#ffd84d" emissiveIntensity={1.4} />
         </mesh>
         <mesh position={[3.9, 0.02, -0.52]} rotation={[0, -0.36, 0]}>
-          <boxGeometry args={[1.14, 0.08, 0.12]} />
-          <meshStandardMaterial color="#ffc857" emissive="#ffc857" emissiveIntensity={1.1} />
+          <boxGeometry args={[1.14, 0.075, 0.12]} />
+          <meshStandardMaterial color="#ff4f87" emissive="#ff4f87" emissiveIntensity={1.35} />
         </mesh>
       </group>
 
       <group ref={subjectRef} position={[-1.9, -0.2, 0.55]}>
         <mesh castShadow>
           <capsuleGeometry args={[0.09, 0.36, 5, 12]} />
-          <meshStandardMaterial color="#fff4db" emissive="#52fff1" emissiveIntensity={0.1} />
+          <meshStandardMaterial color="#fff7db" emissive="#ffd84d" emissiveIntensity={0.12} />
         </mesh>
         <mesh position={[0, 0.34, 0]} castShadow>
           <sphereGeometry args={[0.1, 16, 16]} />
-          <meshStandardMaterial color="#d99b68" roughness={0.6} />
+          <meshStandardMaterial color="#8b543b" roughness={0.56} />
         </mesh>
-        <pointLight intensity={4.5} distance={2.4} color="#52fff1" />
+        <pointLight intensity={5.2} distance={2.4} color="#ffd84d" />
       </group>
 
       <mesh position={[0, 1.82, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[2.55, 0.012, 8, 96]} />
-        <meshStandardMaterial color="#52fff1" emissive="#52fff1" emissiveIntensity={0.8} />
+        <meshStandardMaterial color="#6e4bff" emissive="#6e4bff" emissiveIntensity={0.75} />
       </mesh>
-
-      <Html position={[0, 2.26, 0]} center transform distanceFactor={8} occlude={false}>
-        <div className="model-label">
-          <span>{target.borough}</span>
-          <strong>{target.name}</strong>
-        </div>
-      </Html>
     </group>
   );
-}
-
-function BuildingTower({
-  x,
-  z,
-  height,
-  color,
-  accent,
-}: {
-  id: string;
-  x: number;
-  z: number;
-  height: number;
-  color: string;
-  accent: string;
-}) {
-  return (
-    <group position={[x, height / 2 - 1.05, z]}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[0.46, height, 0.46]} />
-        <meshStandardMaterial color={color} roughness={0.42} metalness={0.18} emissive={accent} emissiveIntensity={0.06} />
-      </mesh>
-      {Array.from({ length: Math.max(2, Math.floor(height * 2.2)) }).map((_, index) => (
-        <mesh key={index} position={[0, -height / 2 + 0.32 + index * 0.34, 0.236]}>
-          <boxGeometry args={[0.36, 0.026, 0.014]} />
-          <meshBasicMaterial color={index % 3 === 0 ? "#ffc857" : accent} transparent opacity={0.58} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function buildTowerSet(count: number) {
-  const colors = ["#253a55", "#3e2450", "#204745", "#523137", "#39462b", "#27314e"];
-  const accents = ["#52fff1", "#ff3fb4", "#ffc857", "#ff5b48", "#75a7ff"];
-  return Array.from({ length: count }).map((_, index) => {
-    const ring = Math.floor(index / 8) + 1;
-    const angle = index * 2.399963;
-    const radius = 0.8 + ring * 0.36 + (index % 3) * 0.16;
-    return {
-      id: `tower-${index}`,
-      x: Math.cos(angle) * radius,
-      z: Math.sin(angle) * radius,
-      height: 0.72 + ((Math.sin(index * 9.17) + 1) / 2) * 2.4 + (index % 7 === 0 ? 1 : 0),
-      color: colors[index % colors.length],
-      accent: accents[index % accents.length],
-    };
-  });
 }
