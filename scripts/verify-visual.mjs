@@ -347,8 +347,19 @@ async function verifyFeatureSmoke(browser) {
       beforePlayback,
       { timeout: 3500 },
     );
-    await page.getByRole("button", { name: "Pause flood rise" }).click();
-    await assertVisible(page.getByRole("button", { name: "Play flood rise" }), "playback button after pause");
+    await page.waitForFunction(
+      () => {
+        const metric = document.querySelectorAll(".simulator-status strong")[2];
+        const playback = Number.parseInt(metric?.textContent ?? "0", 10);
+        const playButton = Array.from(document.querySelectorAll("button")).find((button) =>
+          button.textContent?.includes("Play flood rise"),
+        );
+        return playback >= 100 && Boolean(playButton);
+      },
+      undefined,
+      { timeout: 18000 },
+    );
+    await assertVisible(page.getByRole("button", { name: "Play flood rise" }), "playback button after completion");
 
     await page.locator('.site-nav a[href="#layers"]').click();
     await waitForHash(page, "#layers");

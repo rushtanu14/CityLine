@@ -60,6 +60,9 @@ const storyPanels = [
   },
 ];
 
+const PLAYBACK_DURATION_MS = 14000;
+const PLAYBACK_INTERVAL_MS = 80;
+
 export default function Page() {
   const pageRef = useRef<HTMLDivElement | null>(null);
   const [motion, setMotion] = useState<MotionState>({
@@ -76,6 +79,7 @@ export default function Page() {
   const [isLoaderDismissed, setIsLoaderDismissed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(neighborhoods[0].id);
+  const playbackRef = useRef<{ startedAt: number; startFlood: number; startSim: number } | null>(null);
 
   useEffect(() => {
     const updateMobile = () => {
@@ -201,12 +205,30 @@ export default function Page() {
   useEffect(() => {
     if (!isPlaying) return;
 
+    if (!playbackRef.current) {
+      playbackRef.current = { startedAt: Date.now(), startFlood: motion.flood, startSim: motion.sim };
+    }
+
     const interval = window.setInterval(() => {
+      const playback = playbackRef.current;
+      if (!playback) return;
+
+      const progress = gsap.utils.clamp(0, 1, (Date.now() - playback.startedAt) / PLAYBACK_DURATION_MS);
+      const nextSim = THREE.MathUtils.lerp(playback.startSim, 1, progress);
+      const nextFlood = Math.max(
+        THREE.MathUtils.lerp(playback.startFlood, 1, progress),
+        nextSim * 0.95,
+      );
+
       setMotion((current) => {
-        const next = current.sim >= 1 ? 0.08 : Math.min(1, current.sim + 0.012);
-        return { ...current, sim: next, flood: Math.max(current.flood, next * 0.95) };
+        return { ...current, flood: nextFlood, sim: nextSim };
       });
-    }, 42);
+
+      if (progress >= 1) {
+        playbackRef.current = null;
+        setIsPlaying(false);
+      }
+    }, PLAYBACK_INTERVAL_MS);
 
     return () => window.clearInterval(interval);
   }, [isPlaying]);
@@ -218,6 +240,19 @@ export default function Page() {
   };
 
   const selected = neighborhoods.find((item) => item.id === selectedNeighborhood) ?? neighborhoods[0];
+  const handlePlaybackToggle = () => {
+    if (isPlaying) {
+      playbackRef.current = null;
+      setIsPlaying(false);
+      return;
+    }
+
+    const startFlood = motion.sim >= 0.995 ? 0.22 : motion.flood;
+    const startSim = motion.sim >= 0.995 ? 0.08 : motion.sim;
+    playbackRef.current = { startedAt: Date.now(), startFlood, startSim };
+    setMotion((current) => ({ ...current, flood: startFlood, sim: startSim }));
+    setIsPlaying(true);
+  };
   const photoTransform = `translate3d(${motion.mouseX * -26 - motion.scroll * 118}px, ${
     motion.mouseY * -14 - motion.scroll * 28
   }px, 0) scale(${1.1 + motion.scroll * 0.16})`;
@@ -369,7 +404,7 @@ export default function Page() {
             <p>
               Drag the city stage to inspect the route. Press play to raise the flood and move Maya toward high ground.
             </p>
-            <button className="play-button" type="button" onClick={() => setIsPlaying((value) => !value)}>
+            <button className="play-button" type="button" onClick={handlePlaybackToggle}>
               {isPlaying ? <Pause size={18} /> : <Play size={18} />}
               {isPlaying ? "Pause flood rise" : "Play flood rise"}
             </button>
@@ -534,10 +569,10 @@ function CinematicScene({
   return (
     <>
       <PerspectiveCamera makeDefault position={[0, 2.15, 7.6]} fov={motion.isMobile ? 50 : 41} />
-      <color attach="background" args={["#f8cf9c"]} />
-      <fog attach="fog" args={["#ffe2b7", 9, 22]} />
-      <ambientLight intensity={1.15} color="#fff0d0" />
-      <directionalLight position={[-5, 7, 5]} intensity={3.8} color="#fff1c6" castShadow shadow-mapSize={[1024, 1024]} />
+      <color attach="background" args={["#24384e"]} />
+      <fog attach="fog" args={["#506c82", 8, 20]} />
+      <ambientLight intensity={1.06} color="#cfe8ff" />
+      <directionalLight position={[-5, 7, 5]} intensity={3.4} color="#d8efff" castShadow shadow-mapSize={[1024, 1024]} />
       <spotLight position={[4, 6.8, 6]} angle={0.42} penumbra={0.82} intensity={48} color="#ff4f87" castShadow />
       <pointLight position={[-3.8, 2, 1.6]} intensity={30} color="#6e4bff" />
       <pointLight position={[4, 2.2, -1.8]} intensity={22} color="#ffd84d" />
@@ -559,6 +594,8 @@ function SimulatorScene({
   const modelRef = useRef<THREE.Group>(null);
   const routeRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Mesh>(null);
+  const floodWallRef = useRef<THREE.Mesh>(null);
+  const floodGaugeRef = useRef<THREE.Group>(null);
   const residentRef = useRef<THREE.Group>(null);
   const selectedScene = useMemo(() => getSelectedScene(selectedNeighborhoodId), [selectedNeighborhoodId]);
   const stageStartX = THREE.MathUtils.clamp(selectedScene.startX * 0.45, -0.92, 0.82);
@@ -578,9 +615,21 @@ function SimulatorScene({
 
     if (waterRef.current) {
       waterRef.current.position.y = THREE.MathUtils.lerp(-0.54, -0.14, motion.flood);
-      waterRef.current.scale.setScalar(THREE.MathUtils.lerp(0.62, 1.16, motion.flood));
+      waterRef.current.scale.setScalar(THREE.MathUtils.lerp(0.72, 1.24, motion.flood));
       const material = waterRef.current.material as THREE.MeshPhysicalMaterial;
-      material.opacity = THREE.MathUtils.lerp(0.18, 0.62, motion.flood);
+      material.opacity = THREE.MathUtils.lerp(0.34, 0.78, motion.flood);
+    }
+
+    if (floodWallRef.current) {
+      const height = THREE.MathUtils.lerp(0.08, 1.25, motion.flood);
+      floodWallRef.current.scale.y = THREE.MathUtils.lerp(floodWallRef.current.scale.y, height, 0.12);
+      floodWallRef.current.position.y = -0.58 + height / 2;
+      const material = floodWallRef.current.material as THREE.MeshPhysicalMaterial;
+      material.opacity = THREE.MathUtils.lerp(0.18, 0.54, motion.flood);
+    }
+
+    if (floodGaugeRef.current) {
+      floodGaugeRef.current.position.y = THREE.MathUtils.lerp(-0.48, 0.5, motion.flood);
     }
 
     if (routeRef.current) {
@@ -601,10 +650,10 @@ function SimulatorScene({
   return (
     <>
       <PerspectiveCamera makeDefault position={[3.7, 3.35, 5.35]} fov={38} />
-      <color attach="background" args={["#f6d2ac"]} />
-      <fog attach="fog" args={["#ffe6c6", 7, 15]} />
-      <ambientLight intensity={1.28} color="#fff1d0" />
-      <directionalLight position={[-3.8, 7, 4.2]} intensity={4.2} color="#fff0bf" castShadow />
+      <color attach="background" args={["#263d52"]} />
+      <fog attach="fog" args={["#557184", 7, 15]} />
+      <ambientLight intensity={1.18} color="#d2ecff" />
+      <directionalLight position={[-3.8, 7, 4.2]} intensity={3.7} color="#dbefff" castShadow />
       <pointLight position={[-2.8, 1.4, 1.8]} intensity={18} color="#ff4f87" />
       <pointLight position={[3.2, 1.6, -1.2]} intensity={16} color="#59d7ff" />
       <group ref={modelRef} position={[0, 0.15, 0]} scale={1.08}>
@@ -636,15 +685,44 @@ function SimulatorScene({
         <mesh ref={waterRef} rotation={[-Math.PI / 2, 0, Math.PI / 4]} position={[0, -0.42, 0]}>
           <circleGeometry args={[3.45, 96]} />
           <MeshTransmissionMaterial
-            color="#4edcff"
-            roughness={0.06}
+            color="#0bd7ff"
+            roughness={0.035}
             metalness={0.02}
             transparent
-            opacity={0.34}
-            thickness={0.36}
-            transmission={0.45}
+            opacity={0.58}
+            thickness={0.5}
+            transmission={0.35}
           />
         </mesh>
+        <mesh ref={floodWallRef} position={[0, -0.54, 1.75]}>
+          <boxGeometry args={[5.85, 1, 0.08]} />
+          <meshPhysicalMaterial
+            color="#14d5ff"
+            emissive="#14d5ff"
+            emissiveIntensity={0.2}
+            roughness={0.08}
+            metalness={0.02}
+            transparent
+            opacity={0.28}
+            transmission={0.15}
+          />
+        </mesh>
+        <group ref={floodGaugeRef} position={[-2.88, -0.48, 1.84]}>
+          <mesh>
+            <boxGeometry args={[0.72, 0.052, 0.06]} />
+            <meshStandardMaterial color="#dff9ff" emissive="#14d5ff" emissiveIntensity={0.9} />
+          </mesh>
+          <mesh position={[0.42, 0, 0]}>
+            <boxGeometry args={[0.12, 0.18, 0.08]} />
+            <meshStandardMaterial color="#ff4f87" emissive="#ff4f87" emissiveIntensity={0.75} />
+          </mesh>
+        </group>
+        {[-2.4, -1.2, 0, 1.2, 2.4].map((x, index) => (
+          <mesh key={`flood-pillar-${x}`} position={[x, -0.1 + motion.flood * 0.34, 1.62 - (index % 2) * 0.16]}>
+            <boxGeometry args={[0.035, 0.54, 0.035]} />
+            <meshStandardMaterial color="#dff9ff" emissive="#14d5ff" emissiveIntensity={0.54} transparent opacity={0.72} />
+          </mesh>
+        ))}
         <group ref={routeRef} position={[stageStartX, -0.32, routeLaneZ]} scale={[0.28, 1, 1]}>
           <mesh castShadow>
             <boxGeometry args={[3.72, 0.075, 0.13]} />
@@ -685,8 +763,10 @@ function CitylineObject({
   const photoRef = useRef<THREE.Group>(null);
   const routeRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Mesh>(null);
+  const floodWallRef = useRef<THREE.Mesh>(null);
+  const floodGaugeRef = useRef<THREE.Group>(null);
   const subjectRef = useRef<THREE.Group>(null);
-  const cityTexture = useTexture("/assets/south-street-seaport.jpg");
+  const cityTexture = useTexture("/assets/heavy-rain-storm.jpg");
   const streetSegments = useMemo(() => Array.from({ length: motion.isMobile ? 5 : 9 }), [motion.isMobile]);
   const selectedScene = useMemo(() => getSelectedScene(selectedNeighborhoodId), [selectedNeighborhoodId]);
 
@@ -736,10 +816,22 @@ function CitylineObject({
     }
 
     if (waterRef.current) {
-      waterRef.current.position.y = THREE.MathUtils.lerp(-1.18, -0.44, motion.flood);
-      waterRef.current.scale.setScalar(THREE.MathUtils.lerp(0.6, 1.28, motion.flood));
+      waterRef.current.position.y = THREE.MathUtils.lerp(-1.12, -0.26, motion.flood);
+      waterRef.current.scale.setScalar(THREE.MathUtils.lerp(0.72, 1.42, motion.flood));
       const material = waterRef.current.material as THREE.MeshPhysicalMaterial;
-      material.opacity = THREE.MathUtils.lerp(0.18, 0.58, motion.flood);
+      material.opacity = THREE.MathUtils.lerp(0.3, 0.78, motion.flood);
+    }
+
+    if (floodWallRef.current) {
+      const height = THREE.MathUtils.lerp(0.1, 1.55, motion.flood);
+      floodWallRef.current.scale.y = THREE.MathUtils.lerp(floodWallRef.current.scale.y, height, 0.1);
+      floodWallRef.current.position.y = -1.18 + height / 2;
+      const material = floodWallRef.current.material as THREE.MeshPhysicalMaterial;
+      material.opacity = THREE.MathUtils.lerp(0.2, 0.5, motion.flood);
+    }
+
+    if (floodGaugeRef.current) {
+      floodGaugeRef.current.position.y = THREE.MathUtils.lerp(-1.02, 0.02, motion.flood);
     }
 
     if (subjectRef.current) {
@@ -799,15 +891,38 @@ function CitylineObject({
         <mesh ref={waterRef} rotation={[-Math.PI / 2, 0, Math.PI / 4]} position={[0, -1.05, 0]}>
           <circleGeometry args={[3.95, 96]} />
           <MeshTransmissionMaterial
-            color="#59d7ff"
-            roughness={0.08}
+            color="#0bd7ff"
+            roughness={0.04}
             metalness={0.04}
             transparent
-            opacity={0.28}
-            thickness={0.52}
-            transmission={0.5}
+            opacity={0.52}
+            thickness={0.7}
+            transmission={0.3}
           />
         </mesh>
+        <mesh ref={floodWallRef} position={[0, -1.08, 1.78]}>
+          <boxGeometry args={[6.1, 1, 0.09]} />
+          <meshPhysicalMaterial
+            color="#15d3ff"
+            emissive="#15d3ff"
+            emissiveIntensity={0.18}
+            roughness={0.08}
+            metalness={0.02}
+            transparent
+            opacity={0.28}
+            transmission={0.12}
+          />
+        </mesh>
+        <group ref={floodGaugeRef} position={[-2.9, -1.02, 1.96]}>
+          <mesh>
+            <boxGeometry args={[0.82, 0.055, 0.08]} />
+            <meshStandardMaterial color="#e4fbff" emissive="#15d3ff" emissiveIntensity={0.9} />
+          </mesh>
+          <mesh position={[0.48, 0, 0]}>
+            <boxGeometry args={[0.13, 0.2, 0.1]} />
+            <meshStandardMaterial color="#ff4f87" emissive="#ff4f87" emissiveIntensity={0.7} />
+          </mesh>
+        </group>
       </group>
 
       <group ref={routeRef} position={[selectedScene.startX, -0.62, selectedScene.startZ]} scale={[0.2, 1, 1]}>

@@ -7,3 +7,5 @@
 - `cesium-man.glb` is a local copy of the Khronos glTF Sample Assets `Cesium Man` model.
   Source: https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CesiumMan
   Credit/license: Cesium, CC BY 4.0 with Cesium trademark terms.
+- `heavy-rain-storm.jpg` is a local copy of the Wikimedia Commons file `Rain in the city (14348985459).jpg`.
+  Source: https://commons.wikimedia.org/wiki/File:Rain_in_the_city_(14348985459).jpg

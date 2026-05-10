@@ -10,7 +10,7 @@
   --green: #44d87f;
   --violet: #6e4bff;
   --cream: #fff2cf;
-  background: #f8cf9c;
+  background: #162438;
   color: var(--ink);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -25,7 +25,7 @@
 }
 
 html {
-  background: #f8cf9c;
+  background: #162438;
   scroll-behavior: auto;
 }
 
@@ -33,7 +33,7 @@ body {
   margin: 0;
   min-width: 320px;
   overflow-x: hidden;
-  background: #f8cf9c;
+  background: #162438;
 }
 
 button,
@@ -59,8 +59,8 @@ button {
   padding: 28px;
   color: var(--ink);
   background:
-    linear-gradient(135deg, rgba(255, 242, 207, 0.92), rgba(248, 207, 156, 0.94) 36%, rgba(201, 215, 255, 0.94)),
-    url("/assets/south-street-seaport.jpg") center / cover;
+    linear-gradient(135deg, rgba(18, 28, 47, 0.72), rgba(49, 80, 111, 0.64) 36%, rgba(21, 35, 67, 0.76)),
+    url("/assets/heavy-rain-storm.jpg") center / cover;
   pointer-events: auto;
   transition:
     opacity 520ms ease,
@@ -173,10 +173,9 @@ button {
   min-height: 620vh;
   isolation: isolate;
   background:
-    radial-gradient(circle at 18% 12%, rgba(255, 112, 184, 0.34), transparent 28%),
-    radial-gradient(circle at 82% 18%, rgba(40, 217, 255, 0.3), transparent 28%),
-    radial-gradient(circle at 48% 82%, rgba(255, 216, 77, 0.28), transparent 34%),
-    linear-gradient(135deg, #f8cf9c 0%, #f4b9c7 36%, #c9d7ff 69%, #fff2cf 100%);
+    radial-gradient(circle at 20% 16%, rgba(89, 215, 255, 0.24), transparent 30%),
+    radial-gradient(circle at 82% 20%, rgba(255, 79, 135, 0.18), transparent 32%),
+    linear-gradient(135deg, #14253d 0%, #27445d 38%, #506f8b 72%, #1b2c45 100%);
 }
 
 .city-photo-layer {
@@ -185,10 +184,10 @@ button {
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(255, 242, 207, 0.18), rgba(255, 112, 184, 0.12), rgba(40, 217, 255, 0.18)),
-    url("/assets/south-street-seaport.jpg") center 42% / cover no-repeat;
-  filter: saturate(1.62) contrast(1.08) brightness(1.05);
-  opacity: 0.46;
+    linear-gradient(90deg, rgba(16, 26, 47, 0.18), rgba(40, 217, 255, 0.12), rgba(9, 15, 31, 0.36)),
+    url("/assets/heavy-rain-storm.jpg") center 45% / cover no-repeat;
+  filter: saturate(0.82) contrast(1.28) brightness(0.58);
+  opacity: 0.76;
   transform-origin: center;
   will-change: transform;
 }
@@ -198,8 +197,8 @@ button {
   inset: 0;
   content: "";
   background:
-    linear-gradient(180deg, rgba(255, 242, 207, 0.22) 0%, rgba(255, 242, 207, 0.06) 34%, rgba(244, 185, 199, 0.42) 100%),
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 1px, transparent 1px 92px);
+    linear-gradient(180deg, rgba(7, 14, 29, 0.42) 0%, rgba(35, 71, 106, 0.18) 36%, rgba(15, 29, 48, 0.62) 100%),
+    repeating-linear-gradient(102deg, rgba(198, 236, 255, 0.32) 0 1px, transparent 1px 11px);
   mix-blend-mode: screen;
 }
 
@@ -209,10 +208,10 @@ button {
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(120deg, rgba(255, 79, 135, 0.22), transparent 30%),
-    linear-gradient(260deg, rgba(40, 217, 255, 0.2), transparent 34%),
-    radial-gradient(circle at 50% 48%, rgba(255, 248, 222, 0.3), transparent 38%);
-  filter: saturate(1.45);
+    linear-gradient(120deg, rgba(89, 215, 255, 0.24), transparent 30%),
+    linear-gradient(260deg, rgba(12, 19, 38, 0.44), transparent 34%),
+    radial-gradient(circle at 50% 48%, rgba(178, 229, 255, 0.18), transparent 38%);
+  filter: saturate(1.2);
   animation: gradientDrift 12s ease-in-out infinite alternate;
 }
 
@@ -225,6 +224,32 @@ button {
   opacity: 0.72;
   transform: translate3d(var(--reverse-parallax-x), var(--reverse-parallax-y), 0);
   transition: transform 140ms ease-out;
+}
+
+.motion-field::before,
+.motion-field::after {
+  position: absolute;
+  inset: -20vh -16vw;
+  content: "";
+  background: repeating-linear-gradient(
+    104deg,
+    transparent 0 18px,
+    rgba(208, 242, 255, 0.34) 18px 19px,
+    transparent 19px 34px
+  );
+  transform: translate3d(var(--parallax-x), var(--parallax-y), 0) rotate(0deg);
+  animation: rainSheet 1.5s linear infinite;
+}
+
+.motion-field::after {
+  opacity: 0.55;
+  background: repeating-linear-gradient(
+    106deg,
+    transparent 0 34px,
+    rgba(255, 255, 255, 0.24) 34px 36px,
+    transparent 36px 54px
+  );
+  animation-duration: 2.2s;
 }
 
 .motion-field span {
@@ -279,6 +304,15 @@ button {
   100% {
     transform: translate3d(132vw, -8vh, 0) rotate(-8deg);
     opacity: 0;
+  }
+}
+
+@keyframes rainSheet {
+  from {
+    transform: translate3d(-2vw, -18vh, 0) skewX(-8deg);
+  }
+  to {
+    transform: translate3d(8vw, 18vh, 0) skewX(-8deg);
   }
 }
 
