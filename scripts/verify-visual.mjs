@@ -168,7 +168,8 @@ async function verifyViewport(browser, name, viewport, deviceScaleFactor = 1) {
       : { viewport, deviceScaleFactor };
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
+  await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+  await waitForLoaderToClear(page);
   await assertNoVisibleNextDevIndicator(page, `${name} initial`);
   await waitForCanvas(page, name);
   await waitForVisibleCanvasPixels(page, `${name} initial`);
@@ -300,6 +301,50 @@ async function verifyFeatureSmoke(browser) {
       throw new Error("pointer parallax variables did not update after mouse movement");
     }
 
+    await page.locator('.hero-actions a[href="#command"]').click();
+    await waitForHash(page, "#command");
+    await waitForScrollToSettle(page);
+    await assertVisible(page.getByRole("heading", { name: "Change the variables. Watch the escape path breathe." }), "command heading");
+    await page.waitForTimeout(1400);
+    await assertVisible(page.locator(".simulation-stage"), "embedded 3D simulation stage");
+    await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
+    const compactStageRect = await page.locator(".simulation-stage").evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { widthRatio: rect.width / window.innerWidth, height: rect.height };
+    });
+    if (compactStageRect.widthRatio < 0.78 || compactStageRect.height > 340) {
+      throw new Error(`embedded simulator should be wide and short before expansion, got ${JSON.stringify(compactStageRect)}`);
+    }
+
+    await page.locator(".simulation-stage").click({ position: { x: 520, y: 160 } });
+    await page.waitForFunction(
+      () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "true",
+      undefined,
+      { timeout: 8000 },
+    );
+    const expandedStageRect = await page.locator(".simulation-stage").evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { widthRatio: rect.width / window.innerWidth, heightRatio: rect.height / window.innerHeight };
+    });
+    if (expandedStageRect.widthRatio < 0.75 || expandedStageRect.heightRatio < 0.55) {
+      throw new Error(`embedded simulator did not expand enough, got ${JSON.stringify(expandedStageRect)}`);
+    }
+    await assertVisible(page.getByRole("button", { name: "Open full screen simulation" }), "fullscreen simulation button");
+    await assertVisible(page.locator(".simulation-stage-controls"), "expanded simulation controls");
+    await assertVisible(page.locator(".stage-play-button"), "expanded simulation play button");
+    await page.locator(".brand").click();
+    await page.waitForFunction(
+      () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "false",
+      undefined,
+      { timeout: 4000 },
+    );
+
+    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
+    await waitForLoaderToClear(page);
+    await assertNoVisibleNextDevIndicator(page, "feature smoke story reload");
+    await waitForCanvas(page, "feature smoke story reload");
+    await waitForVisibleCanvasPixels(page, "feature smoke story reload");
+
     await page.locator('.site-nav a[href="#story"]').click();
     await waitForHash(page, "#story");
     await waitForScrollToSettle(page);
@@ -318,13 +363,6 @@ async function verifyFeatureSmoke(browser) {
     await page.waitForTimeout(1400);
     await assertVisible(page.locator(".simulation-stage"), "embedded 3D simulation stage");
     await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
-    const stageRect = await page.locator(".simulation-stage").evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return { widthRatio: rect.width / window.innerWidth, height: rect.height };
-    });
-    if (stageRect.widthRatio < 0.78 || stageRect.height > 340) {
-      throw new Error(`embedded simulator should be wide and short, got ${JSON.stringify(stageRect)}`);
-    }
 
     for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
       const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });
