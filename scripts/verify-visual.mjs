@@ -318,6 +318,13 @@ async function verifyFeatureSmoke(browser) {
     await page.waitForTimeout(1400);
     await assertVisible(page.locator(".simulation-stage"), "embedded 3D simulation stage");
     await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
+    const stageRect = await page.locator(".simulation-stage").evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { widthRatio: rect.width / window.innerWidth, height: rect.height };
+    });
+    if (stageRect.widthRatio < 0.78 || stageRect.height > 340) {
+      throw new Error(`embedded simulator should be wide and short, got ${JSON.stringify(stageRect)}`);
+    }
 
     for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
       const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });

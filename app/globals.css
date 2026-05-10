@@ -702,7 +702,7 @@ h1 {
 
 .command-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 0.7fr) minmax(520px, 1.62fr) minmax(260px, 0.76fr);
+  grid-template-columns: minmax(250px, 0.7fr) minmax(0, 1fr) minmax(280px, 0.78fr);
   gap: 14px;
   align-items: stretch;
 }
@@ -803,16 +803,31 @@ h1 {
 }
 
 .simulator-copy {
-  min-height: 660px;
+  grid-column: 1 / -1;
+  grid-row: 1;
+  min-height: 0;
   display: grid;
-  grid-template-rows: minmax(360px, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.34fr);
+  grid-template-rows: auto auto auto;
   align-content: stretch;
-  gap: 18px;
+  gap: 14px;
+}
+
+.control-stack {
+  grid-column: 1 / 2;
+  grid-row: 2;
+}
+
+.action-stack {
+  grid-column: 2 / -1;
+  grid-row: 2;
 }
 
 .simulation-stage {
+  grid-column: 1 / -1;
   position: relative;
-  min-height: 380px;
+  height: clamp(230px, 31vh, 300px);
+  min-height: 0;
   border: 1px solid rgba(38, 20, 73, 0.14);
   border-radius: 8px;
   background:
@@ -876,13 +891,14 @@ h1 {
 }
 
 .simulator-status {
+  grid-column: 1 / 2;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
 .simulator-status > div {
-  min-height: 92px;
+  min-height: 84px;
   border: 1px solid rgba(38, 20, 73, 0.12);
   border-radius: 8px;
   padding: 12px;
@@ -906,6 +922,19 @@ h1 {
   margin-top: 8px;
   font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
   font-size: 2.1rem;
+}
+
+.simulator-copy p {
+  grid-column: 1 / 2;
+  margin: 0;
+}
+
+.simulator-copy .play-button {
+  grid-column: 2 / 3;
+  grid-row: 2 / span 2;
+  width: 100%;
+  min-height: 100%;
+  align-self: stretch;
 }
 
 .action-row {
@@ -990,11 +1019,32 @@ h1 {
 
   .simulator-copy {
     grid-column: 1 / -1;
-    min-height: 620px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .simulator-status,
+  .simulator-copy p,
+  .simulator-copy .play-button {
+    grid-column: 1 / -1;
   }
 
   .simulation-stage {
-    min-height: 350px;
+    height: clamp(220px, 30vh, 280px);
+  }
+
+  .simulator-copy .play-button {
+    grid-row: auto;
+    min-height: 56px;
+  }
+
+  .control-stack {
+    grid-column: 1 / 2;
+    grid-row: 2;
+  }
+
+  .action-stack {
+    grid-column: 2 / 3;
+    grid-row: 2;
   }
 
   .layer-grid {
@@ -1087,11 +1137,27 @@ h1 {
   }
 
   .simulation-stage {
-    min-height: 320px;
+    height: clamp(210px, 30vh, 260px);
   }
 
   .simulator-status {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .simulator-status > div {
+    min-height: 74px;
+    padding: 10px;
+  }
+
+  .simulator-status strong {
+    font-size: 1.55rem;
+  }
+
+  .control-stack,
+  .action-stack {
+    grid-column: 1 / -1;
+    grid-row: auto;
   }
 
   .simulation-stage-hud {
