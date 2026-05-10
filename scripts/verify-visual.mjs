@@ -286,6 +286,9 @@ async function verifyFeatureSmoke(browser) {
 
     await assertVisible(page.getByRole("heading", { name: "CityLine Flood Run" }), "hero headline");
     await assertVisible(page.getByText("Flash flood warning / South Street Seaport"), "hero warning copy");
+    if ((await page.getByText("Heavy dreamy scroll").count()) > 0) {
+      throw new Error("removed hero helper copy is still visible");
+    }
 
     await waitForVisibleCanvasPixels(page, "feature smoke");
 
@@ -313,6 +316,8 @@ async function verifyFeatureSmoke(browser) {
     await waitForScrollToSettle(page);
     await assertVisible(page.getByRole("heading", { name: "Change the variables. Watch the escape path breathe." }), "command heading");
     await page.waitForTimeout(1400);
+    await assertVisible(page.locator(".simulation-stage"), "embedded 3D simulation stage");
+    await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
 
     for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
       const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });

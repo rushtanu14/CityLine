@@ -1,7 +1,16 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { ContactShadows, Float, MeshTransmissionMaterial, PerspectiveCamera, useTexture } from "@react-three/drei";
+import {
+  Clone,
+  ContactShadows,
+  Float,
+  MeshTransmissionMaterial,
+  OrbitControls,
+  PerspectiveCamera,
+  useGLTF,
+  useTexture,
+} from "@react-three/drei";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
@@ -14,7 +23,7 @@ import {
   Play,
   RadioTower,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { hazards, neighborhoods } from "../src/data/cityData";
 
@@ -160,24 +169,6 @@ export default function Page() {
       });
     });
 
-    gsap.utils.toArray<HTMLElement>(".command-card").forEach((card, index) => {
-      gsap.fromTo(
-        card,
-        { autoAlpha: 0 },
-        {
-          autoAlpha: 1,
-          duration: 0.36,
-          delay: index * 0.04,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: card,
-            start: "top 88%",
-            toggleActions: "play none none reverse",
-          },
-        },
-      );
-    });
-
     return () => {
       cancelAnimationFrame(frame);
       trigger.kill();
@@ -272,7 +263,9 @@ export default function Page() {
             setIsSceneReady(true);
           }}
         >
-          <CinematicScene motion={motion} selectedNeighborhoodId={selectedNeighborhood} />
+          <Suspense fallback={null}>
+            <CinematicScene motion={motion} selectedNeighborhoodId={selectedNeighborhood} />
+          </Suspense>
         </Canvas>
       </div>
 
@@ -304,7 +297,6 @@ export default function Page() {
           </p>
           <div className="hero-actions">
             <a href="#command">Open simulator</a>
-            <span>Heavy dreamy scroll</span>
           </div>
         </div>
       </section>
@@ -320,7 +312,7 @@ export default function Page() {
         ))}
       </section>
 
-      <section id="command" className="command-section">
+      <section id="command" className={`command-section ${motion.scroll > 0.88 ? "is-past" : ""}`}>
         <div className="command-heading glass-copy">
           <span>Command simulator</span>
           <h2>Change the variables. Watch the escape path breathe.</h2>
@@ -354,14 +346,28 @@ export default function Page() {
           </aside>
 
           <section className="command-card simulator-copy interactive-panel">
+            <div className="simulation-stage" aria-label="3D flood simulation">
+              <Canvas
+                dpr={motion.isMobile ? [1, 1.2] : [1, 1.55]}
+                shadows
+                gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+              >
+                <Suspense fallback={null}>
+                  <SimulatorScene motion={motion} selectedNeighborhoodId={selectedNeighborhood} />
+                </Suspense>
+              </Canvas>
+              <div className="simulation-stage-hud" aria-hidden="true">
+                <span>Live route model</span>
+                <strong>{selected.name}</strong>
+              </div>
+            </div>
             <div className="simulator-status">
               <Metric label="Flood rise" value={`${Math.round(motion.flood * 100)}%`} />
               <Metric label="Route confidence" value={`${Math.round(motion.route * 88)}%`} />
               <Metric label="Escape playback" value={`${Math.round(motion.sim * 100)}%`} />
             </div>
             <p>
-              The fixed R3F canvas stays behind this interface. Drag across the page for parallax, then press play to
-              make the flood layer and route object animate like a lightweight Spline-style web export.
+              Drag the city stage to inspect the route. Press play to raise the flood and move Maya toward high ground.
             </p>
             <button className="play-button" type="button" onClick={() => setIsPlaying((value) => !value)}>
               {isPlaying ? <Pause size={18} /> : <Play size={18} />}
@@ -424,6 +430,100 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+const cityBlocks = [
+  { x: -2.55, z: -1.22, w: 0.46, d: 0.52, h: 1.48, color: "#9cc8d6" },
+  { x: -1.96, z: -1.18, w: 0.5, d: 0.48, h: 1.9, color: "#e7c49e" },
+  { x: -1.28, z: -1.24, w: 0.42, d: 0.56, h: 1.22, color: "#b9d6cf" },
+  { x: -0.52, z: -1.18, w: 0.58, d: 0.5, h: 2.28, color: "#9fb8d5" },
+  { x: 0.3, z: -1.24, w: 0.5, d: 0.54, h: 1.56, color: "#f1c0aa" },
+  { x: 1.08, z: -1.18, w: 0.52, d: 0.5, h: 2.04, color: "#afd0e9" },
+  { x: 2.02, z: -1.24, w: 0.62, d: 0.56, h: 1.38, color: "#d3bfdf" },
+  { x: -2.32, z: 0.02, w: 0.54, d: 0.48, h: 1.2, color: "#f0d09d" },
+  { x: -1.58, z: 0.06, w: 0.46, d: 0.46, h: 1.72, color: "#9ed1c8" },
+  { x: -0.72, z: 0.04, w: 0.56, d: 0.54, h: 2.52, color: "#8bb4d9" },
+  { x: 0.18, z: 0.02, w: 0.44, d: 0.48, h: 1.28, color: "#e8b6c9" },
+  { x: 1.02, z: 0.06, w: 0.58, d: 0.52, h: 1.86, color: "#ccb3e8" },
+  { x: 1.9, z: 0.04, w: 0.5, d: 0.5, h: 2.34, color: "#a9d7e9" },
+  { x: -2.22, z: 1.18, w: 0.52, d: 0.5, h: 1.58, color: "#d9b89b" },
+  { x: -1.36, z: 1.22, w: 0.52, d: 0.54, h: 1.18, color: "#aedfc4" },
+  { x: -0.42, z: 1.2, w: 0.46, d: 0.5, h: 1.94, color: "#e7d27c" },
+  { x: 0.46, z: 1.16, w: 0.62, d: 0.56, h: 1.42, color: "#d2e5f2" },
+  { x: 1.4, z: 1.2, w: 0.54, d: 0.52, h: 2.12, color: "#f1b3ae" },
+  { x: 2.22, z: 1.18, w: 0.46, d: 0.48, h: 1.34, color: "#b8d0f0" },
+];
+
+function getSelectedScene(selectedNeighborhoodId: string) {
+  const selected = neighborhoods.find((item) => item.id === selectedNeighborhoodId) ?? neighborhoods[0];
+  return {
+    startX: THREE.MathUtils.clamp(selected.scene[0] / 3.8, -1.95, 1.35),
+    startZ: THREE.MathUtils.clamp(selected.scene[1] / 5.7, -0.86, 0.86),
+    routeYaw: THREE.MathUtils.clamp(selected.scene[0] / 48, -0.16, 0.16),
+  };
+}
+
+function DetailedCityModel({ compact = false }: { compact?: boolean }) {
+  const visibleBlocks = compact ? cityBlocks : cityBlocks.slice(0, 16);
+
+  return (
+    <group>
+      {visibleBlocks.map((block, index) => {
+        const windowRows = Math.max(3, Math.round(block.h * 4));
+        return (
+          <group key={`${block.x}-${block.z}`} position={[block.x, -0.48 + block.h / 2, block.z]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[block.w, block.h, block.d]} />
+              <meshPhysicalMaterial
+                color={block.color}
+                roughness={0.42}
+                metalness={0.08}
+                clearcoat={0.32}
+                clearcoatRoughness={0.5}
+              />
+            </mesh>
+            <mesh position={[0, block.h / 2 + 0.035, 0]} castShadow>
+              <boxGeometry args={[block.w * 0.84, 0.07, block.d * 0.84]} />
+              <meshStandardMaterial color="#fff4d2" roughness={0.5} />
+            </mesh>
+            {Array.from({ length: windowRows }).map((_, row) => (
+              <mesh
+                key={row}
+                position={[0, -block.h / 2 + 0.24 + row * 0.28, block.d / 2 + 0.008]}
+              >
+                <boxGeometry args={[block.w * 0.62, 0.028, 0.01]} />
+                <meshStandardMaterial
+                  color={index % 2 === 0 ? "#fff4bd" : "#bff3ff"}
+                  emissive={index % 2 === 0 ? "#ffd84d" : "#59d7ff"}
+                  emissiveIntensity={0.16}
+                />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
+      {[-1.78, -0.92, -0.08, 0.82, 1.68].map((x, index) => (
+        <mesh key={`car-${x}`} position={[x, -0.415, 0.62 + (index % 2) * 0.28]} castShadow>
+          <boxGeometry args={[0.2, 0.08, 0.36]} />
+          <meshStandardMaterial
+            color={index % 2 === 0 ? "#ff4f87" : "#ffd84d"}
+            emissive={index % 2 === 0 ? "#ff4f87" : "#ffd84d"}
+            emissiveIntensity={0.18}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function ResidentModel({ scale = 0.18 }: { scale?: number }) {
+  const { scene } = useGLTF("/assets/cesium-man.glb");
+
+  return (
+    <group scale={scale} rotation={[0, Math.PI / 2, 0]}>
+      <Clone object={scene} castShadow receiveShadow />
+    </group>
+  );
+}
+
 function CinematicScene({
   motion,
   selectedNeighborhoodId,
@@ -449,6 +549,131 @@ function CinematicScene({
   );
 }
 
+function SimulatorScene({
+  motion,
+  selectedNeighborhoodId,
+}: {
+  motion: MotionState;
+  selectedNeighborhoodId: string;
+}) {
+  const modelRef = useRef<THREE.Group>(null);
+  const routeRef = useRef<THREE.Group>(null);
+  const waterRef = useRef<THREE.Mesh>(null);
+  const residentRef = useRef<THREE.Group>(null);
+  const selectedScene = useMemo(() => getSelectedScene(selectedNeighborhoodId), [selectedNeighborhoodId]);
+  const stageStartX = THREE.MathUtils.clamp(selectedScene.startX * 0.45, -0.92, 0.82);
+  const routeLaneZ = 0.48 + THREE.MathUtils.clamp(selectedScene.startZ * 0.18, -0.22, 0.22);
+
+  useFrame((state) => {
+    const elapsed = state.clock.elapsedTime;
+
+    if (modelRef.current) {
+      modelRef.current.rotation.y = THREE.MathUtils.lerp(
+        modelRef.current.rotation.y,
+        -0.36 + motion.mouseX * 0.18,
+        0.04,
+      );
+      modelRef.current.rotation.x = THREE.MathUtils.lerp(modelRef.current.rotation.x, -0.05 + motion.mouseY * 0.08, 0.04);
+    }
+
+    if (waterRef.current) {
+      waterRef.current.position.y = THREE.MathUtils.lerp(-0.54, -0.14, motion.flood);
+      waterRef.current.scale.setScalar(THREE.MathUtils.lerp(0.62, 1.16, motion.flood));
+      const material = waterRef.current.material as THREE.MeshPhysicalMaterial;
+      material.opacity = THREE.MathUtils.lerp(0.18, 0.62, motion.flood);
+    }
+
+    if (routeRef.current) {
+      routeRef.current.position.x = THREE.MathUtils.lerp(routeRef.current.position.x, stageStartX, 0.08);
+      routeRef.current.position.z = THREE.MathUtils.lerp(routeRef.current.position.z, routeLaneZ, 0.08);
+      routeRef.current.rotation.y = THREE.MathUtils.lerp(routeRef.current.rotation.y, selectedScene.routeYaw, 0.08);
+      routeRef.current.scale.x = THREE.MathUtils.lerp(routeRef.current.scale.x, 0.16 + motion.route * 0.86, 0.1);
+    }
+
+    if (residentRef.current) {
+      residentRef.current.position.x = THREE.MathUtils.lerp(stageStartX, stageStartX + 2.72, motion.sim);
+      residentRef.current.position.z = THREE.MathUtils.lerp(routeLaneZ, routeLaneZ - 0.95, motion.sim);
+      residentRef.current.position.y = 0.55 + Math.sin(elapsed * 6.2) * 0.018;
+      residentRef.current.rotation.y = Math.PI / 2 + Math.sin(elapsed * 1.8) * 0.08;
+    }
+  });
+
+  return (
+    <>
+      <PerspectiveCamera makeDefault position={[3.7, 3.35, 5.35]} fov={38} />
+      <color attach="background" args={["#f6d2ac"]} />
+      <fog attach="fog" args={["#ffe6c6", 7, 15]} />
+      <ambientLight intensity={1.28} color="#fff1d0" />
+      <directionalLight position={[-3.8, 7, 4.2]} intensity={4.2} color="#fff0bf" castShadow />
+      <pointLight position={[-2.8, 1.4, 1.8]} intensity={18} color="#ff4f87" />
+      <pointLight position={[3.2, 1.6, -1.2]} intensity={16} color="#59d7ff" />
+      <group ref={modelRef} position={[0, 0.15, 0]} scale={1.08}>
+        <mesh receiveShadow position={[0, -0.56, 0]} rotation={[0, 0.02, 0]}>
+          <boxGeometry args={[6.1, 0.2, 4.1]} />
+          <meshPhysicalMaterial color="#fff1c6" roughness={0.36} metalness={0.04} clearcoat={0.28} />
+        </mesh>
+        {[-1.72, -0.86, 0, 0.86, 1.72].map((x, index) => (
+          <mesh key={`sim-road-x-${x}`} position={[x, -0.43, 0]} rotation={[0, 0.02, 0]}>
+            <boxGeometry args={[0.09, 0.035, 3.78]} />
+            <meshStandardMaterial
+              color={index % 2 === 0 ? "#ff4f87" : "#6e4bff"}
+              emissive={index % 2 === 0 ? "#ff4f87" : "#6e4bff"}
+              emissiveIntensity={0.4}
+            />
+          </mesh>
+        ))}
+        {[-1.24, -0.38, 0.48, 1.34].map((z, index) => (
+          <mesh key={`sim-road-z-${z}`} position={[0, -0.415, z]} rotation={[0, 0.02, 0]}>
+            <boxGeometry args={[5.75, 0.032, 0.09]} />
+            <meshStandardMaterial
+              color={index % 2 === 0 ? "#59d7ff" : "#ffd84d"}
+              emissive={index % 2 === 0 ? "#59d7ff" : "#ffd84d"}
+              emissiveIntensity={0.34}
+            />
+          </mesh>
+        ))}
+        <DetailedCityModel compact />
+        <mesh ref={waterRef} rotation={[-Math.PI / 2, 0, Math.PI / 4]} position={[0, -0.42, 0]}>
+          <circleGeometry args={[3.45, 96]} />
+          <MeshTransmissionMaterial
+            color="#4edcff"
+            roughness={0.06}
+            metalness={0.02}
+            transparent
+            opacity={0.34}
+            thickness={0.36}
+            transmission={0.45}
+          />
+        </mesh>
+        <group ref={routeRef} position={[stageStartX, -0.32, routeLaneZ]} scale={[0.28, 1, 1]}>
+          <mesh castShadow>
+            <boxGeometry args={[3.72, 0.075, 0.13]} />
+            <meshStandardMaterial color="#fff8c7" emissive="#ffd84d" emissiveIntensity={1.55} />
+          </mesh>
+          <mesh position={[3.55, 0.04, -0.46]} rotation={[0, -0.34, 0]}>
+            <boxGeometry args={[1.02, 0.075, 0.13]} />
+            <meshStandardMaterial color="#ff4f87" emissive="#ff4f87" emissiveIntensity={1.3} />
+          </mesh>
+        </group>
+        <group ref={residentRef} position={[stageStartX, 0.55, routeLaneZ]}>
+          <ResidentModel scale={0.28} />
+          <pointLight intensity={5} distance={1.6} color="#ffd84d" />
+          <mesh position={[0, 0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.18, 0.012, 8, 36]} />
+            <meshStandardMaterial color="#ffd84d" emissive="#ffd84d" emissiveIntensity={0.82} />
+          </mesh>
+        </group>
+        <mesh position={[1.8, 0.32, -1.38]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.28, 0.014, 8, 48]} />
+          <meshStandardMaterial color="#44d87f" emissive="#44d87f" emissiveIntensity={0.9} />
+        </mesh>
+      </group>
+      <ContactShadows position={[0, -0.6, 0]} opacity={0.35} scale={8} blur={2.6} far={4.5} color="#6b4264" />
+      <OrbitControls enablePan={false} enableZoom={false} enableDamping dampingFactor={0.08} rotateSpeed={0.45} />
+    </>
+  );
+}
+
 function CitylineObject({
   motion,
   selectedNeighborhoodId,
@@ -463,14 +688,7 @@ function CitylineObject({
   const subjectRef = useRef<THREE.Group>(null);
   const cityTexture = useTexture("/assets/south-street-seaport.jpg");
   const streetSegments = useMemo(() => Array.from({ length: motion.isMobile ? 5 : 9 }), [motion.isMobile]);
-  const selectedScene = useMemo(() => {
-    const selected = neighborhoods.find((item) => item.id === selectedNeighborhoodId) ?? neighborhoods[0];
-    return {
-      startX: THREE.MathUtils.clamp(selected.scene[0] / 3.8, -1.95, 1.35),
-      startZ: THREE.MathUtils.clamp(selected.scene[1] / 5.7, -0.86, 0.86),
-      routeYaw: THREE.MathUtils.clamp(selected.scene[0] / 48, -0.16, 0.16),
-    };
-  }, [selectedNeighborhoodId]);
+  const selectedScene = useMemo(() => getSelectedScene(selectedNeighborhoodId), [selectedNeighborhoodId]);
 
   useEffect(() => {
     cityTexture.colorSpace = THREE.SRGBColorSpace;
@@ -577,6 +795,7 @@ function CitylineObject({
             />
           </mesh>
         ))}
+        <DetailedCityModel />
         <mesh ref={waterRef} rotation={[-Math.PI / 2, 0, Math.PI / 4]} position={[0, -1.05, 0]}>
           <circleGeometry args={[3.95, 96]} />
           <MeshTransmissionMaterial
@@ -603,14 +822,7 @@ function CitylineObject({
       </group>
 
       <group ref={subjectRef} position={[selectedScene.startX, -0.2, selectedScene.startZ]}>
-        <mesh castShadow>
-          <capsuleGeometry args={[0.09, 0.36, 5, 12]} />
-          <meshStandardMaterial color="#fff7db" emissive="#ffd84d" emissiveIntensity={0.12} />
-        </mesh>
-        <mesh position={[0, 0.34, 0]} castShadow>
-          <sphereGeometry args={[0.1, 16, 16]} />
-          <meshStandardMaterial color="#8b543b" roughness={0.56} />
-        </mesh>
+        <ResidentModel scale={0.075} />
         <pointLight intensity={5.2} distance={2.4} color="#ffd84d" />
       </group>
 
@@ -621,3 +833,5 @@ function CitylineObject({
     </group>
   );
 }
+
+useGLTF.preload("/assets/cesium-man.glb");
