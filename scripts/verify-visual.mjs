@@ -109,6 +109,29 @@ async function assertNoMajorOverlap(page, label, selectors) {
   }
 }
 
+async function assertNoVisibleNextDevIndicator(page, label) {
+  const indicator = await page.evaluate(() => {
+    const portal = document.querySelector("nextjs-portal");
+    if (!portal) return { visible: false, text: "" };
+
+    const style = window.getComputedStyle(portal);
+    const rect = portal.getBoundingClientRect();
+    return {
+      visible:
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        Number.parseFloat(style.opacity || "1") > 0.05 &&
+        rect.width > 1 &&
+        rect.height > 1,
+      text: portal.textContent?.trim().slice(0, 120) ?? "",
+    };
+  });
+
+  if (indicator.visible) {
+    throw new Error(`${label} has a visible Next.js dev indicator or overlay: ${indicator.text}`);
+  }
+}
+
 async function waitForCanvas(page, name) {
   const canvasLocator = page.locator("canvas");
   const start = Date.now();
@@ -139,13 +162,14 @@ async function scrollToProgress(page, progress) {
 }
 
 async function verifyViewport(browser, name, viewport, deviceScaleFactor = 1) {
-  const context = await browser.newContext({
-    viewport,
-    deviceScaleFactor,
-    ...(name === "mobile" ? devices["iPhone 14"] : {}),
-  });
+  const contextOptions =
+    name === "mobile"
+      ? { ...devices["iPhone 14"], viewport, deviceScaleFactor }
+      : { viewport, deviceScaleFactor };
+  const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
   await page.goto(baseUrl, { waitUntil: "networkidle" });
+  await assertNoVisibleNextDevIndicator(page, `${name} initial`);
   await waitForCanvas(page, name);
   await waitForVisibleCanvasPixels(page, `${name} initial`);
 
@@ -256,6 +280,7 @@ async function verifyFeatureSmoke(browser) {
   try {
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await waitForLoaderToClear(page);
+    await assertNoVisibleNextDevIndicator(page, "feature smoke initial");
     await waitForCanvas(page, "feature smoke");
     await waitForVisibleCanvasPixels(page, "feature smoke initial");
 
@@ -279,6 +304,7 @@ async function verifyFeatureSmoke(browser) {
 
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await waitForLoaderToClear(page);
+    await assertNoVisibleNextDevIndicator(page, "feature smoke reload");
     await waitForCanvas(page, "feature smoke reload");
     await waitForVisibleCanvasPixels(page, "feature smoke reload");
 
@@ -289,8 +315,13 @@ async function verifyFeatureSmoke(browser) {
     await page.waitForTimeout(1400);
 
     for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
-      await page.locator(".neighborhood-list button", { hasText: neighborhood }).click();
+      const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });
+      await neighborhoodButton.click();
       await assertVisible(page.locator(".subject-card strong", { hasText: neighborhood }), `selected neighborhood ${neighborhood}`);
+      const isPressed = await neighborhoodButton.getAttribute("aria-pressed");
+      if (isPressed !== "true") {
+        throw new Error(`selected neighborhood ${neighborhood} did not expose active button state`);
+      }
     }
 
     const beforePlayback = await page.locator(".simulator-status strong").nth(2).innerText();
@@ -329,15 +360,53 @@ async function verifyFeatureSmoke(browser) {
   };
 }
 
+async function verifyLocalhostAlias(browser) {
+  const parsedUrl = new URL(baseUrl);
+  if (parsedUrl.hostname !== "localhost") {
+    return null;
+  }
+
+  const aliasUrl = `${parsedUrl.protocol}//127.0.0.1:${parsedUrl.port || (parsedUrl.protocol === "https:" ? "443" : "80")}${parsedUrl.pathname}`;
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: 1 });
+  const page = await context.newPage();
+  const browserErrors = [];
+
+  page.on("pageerror", (error) => browserErrors.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(`console error: ${message.text()}`);
+  });
+
+  try {
+    await page.goto(aliasUrl, { waitUntil: "domcontentloaded" });
+    await waitForLoaderToClear(page);
+    await assertNoVisibleNextDevIndicator(page, "127.0.0.1 alias");
+    await waitForCanvas(page, "127.0.0.1 alias");
+    await waitForVisibleCanvasPixels(page, "127.0.0.1 alias");
+
+    if (browserErrors.length > 0) {
+      throw new Error(`browser errors during 127.0.0.1 alias check:\n${browserErrors.join("\n")}`);
+    }
+  } finally {
+    await context.close();
+  }
+
+  return {
+    name: "dev alias",
+    details: "127.0.0.1 hydrates, clears loader, and renders WebGL without dev overlays",
+  };
+}
+
 async function main() {
   await fs.mkdir("artifacts", { recursive: true });
   const browser = await chromium.launch();
   try {
     const results = [];
     results.push(await verifyFeatureSmoke(browser));
+    const aliasResult = await verifyLocalhostAlias(browser);
+    if (aliasResult) results.push(aliasResult);
     results.push(await verifyViewport(browser, "desktop", { width: 1440, height: 980 }, 1));
     results.push(await verifyViewport(browser, "mobile", { width: 390, height: 844 }, 2));
-    console.log("Visual verification passed:");
+    console.log("CityLine verification passed:");
     for (const result of results) {
       console.log(`- ${result.name}: ${result.details ?? "R3F canvas visible across scroll stops"}`);
     }

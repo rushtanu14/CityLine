@@ -8,17 +8,11 @@ import Lenis from "lenis";
 import {
   ArrowUpRight,
   Building2,
-  CloudRain,
   Crosshair,
-  Layers3,
   Navigation,
   Pause,
   Play,
   RadioTower,
-  Route,
-  ShieldAlert,
-  SlidersHorizontal,
-  Waves,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -55,12 +49,6 @@ const storyPanels = [
     body: "The subject stays visible while CityLine rotates from cinematic story into practical route intelligence.",
     stat: "12 min walk",
   },
-];
-
-const controls = [
-  { label: "Rainfall", value: "3.2 in/hr", icon: CloudRain },
-  { label: "Tide surge", value: "+6.8 ft", icon: Waves },
-  { label: "Drainage", value: "42%", icon: SlidersHorizontal },
 ];
 
 export default function Page() {
@@ -105,6 +93,9 @@ export default function Page() {
   }, []);
 
   useEffect(() => {
+    const root = pageRef.current;
+    if (!root) return;
+
     const lenis = new Lenis({
       duration: 1.55,
       smoothWheel: true,
@@ -112,15 +103,16 @@ export default function Page() {
       touchMultiplier: 0.9,
     });
 
+    let frame = 0;
     const raf = (time: number) => {
       lenis.raf(time);
       ScrollTrigger.update();
-      requestAnimationFrame(raf);
+      frame = requestAnimationFrame(raf);
     };
-    const frame = requestAnimationFrame(raf);
+    frame = requestAnimationFrame(raf);
 
     const trigger = ScrollTrigger.create({
-      trigger: pageRef.current,
+      trigger: root,
       start: "top top",
       end: "bottom bottom",
       scrub: 1.4,
@@ -351,6 +343,7 @@ export default function Page() {
                   className={item.id === selectedNeighborhood ? "is-active" : ""}
                   key={item.id}
                   type="button"
+                  aria-pressed={item.id === selectedNeighborhood}
                   onClick={() => setSelectedNeighborhood(item.id)}
                 >
                   <span>{item.borough}</span>
@@ -468,9 +461,16 @@ function CitylineObject({
   const routeRef = useRef<THREE.Group>(null);
   const waterRef = useRef<THREE.Mesh>(null);
   const subjectRef = useRef<THREE.Group>(null);
-  const target = neighborhoods.find((item) => item.id === selectedNeighborhoodId) ?? neighborhoods[0];
   const cityTexture = useTexture("/assets/south-street-seaport.jpg");
   const streetSegments = useMemo(() => Array.from({ length: motion.isMobile ? 5 : 9 }), [motion.isMobile]);
+  const selectedScene = useMemo(() => {
+    const selected = neighborhoods.find((item) => item.id === selectedNeighborhoodId) ?? neighborhoods[0];
+    return {
+      startX: THREE.MathUtils.clamp(selected.scene[0] / 3.8, -1.95, 1.35),
+      startZ: THREE.MathUtils.clamp(selected.scene[1] / 5.7, -0.86, 0.86),
+      routeYaw: THREE.MathUtils.clamp(selected.scene[0] / 48, -0.16, 0.16),
+    };
+  }, [selectedNeighborhoodId]);
 
   useEffect(() => {
     cityTexture.colorSpace = THREE.SRGBColorSpace;
@@ -511,7 +511,10 @@ function CitylineObject({
 
     if (routeRef.current) {
       routeRef.current.scale.x = THREE.MathUtils.lerp(routeRef.current.scale.x, 0.18 + motion.route * 0.92, 0.1);
+      routeRef.current.position.x = THREE.MathUtils.lerp(routeRef.current.position.x, selectedScene.startX, 0.08);
       routeRef.current.position.y = -0.64 + Math.sin(elapsed * 2.4) * 0.018;
+      routeRef.current.position.z = THREE.MathUtils.lerp(routeRef.current.position.z, selectedScene.startZ, 0.08);
+      routeRef.current.rotation.y = THREE.MathUtils.lerp(routeRef.current.rotation.y, selectedScene.routeYaw, 0.08);
     }
 
     if (waterRef.current) {
@@ -522,8 +525,8 @@ function CitylineObject({
     }
 
     if (subjectRef.current) {
-      subjectRef.current.position.x = THREE.MathUtils.lerp(-1.9, 1.9, motion.sim);
-      subjectRef.current.position.z = THREE.MathUtils.lerp(0.55, -0.56, motion.sim);
+      subjectRef.current.position.x = THREE.MathUtils.lerp(selectedScene.startX, selectedScene.startX + 3.15, motion.sim);
+      subjectRef.current.position.z = THREE.MathUtils.lerp(selectedScene.startZ, selectedScene.startZ - 1.05, motion.sim);
       subjectRef.current.position.y = -0.24 + Math.sin(elapsed * 5) * 0.025;
     }
   });
@@ -588,7 +591,7 @@ function CitylineObject({
         </mesh>
       </group>
 
-      <group ref={routeRef} position={[-1.9, -0.62, 0.56]} scale={[0.2, 1, 1]}>
+      <group ref={routeRef} position={[selectedScene.startX, -0.62, selectedScene.startZ]} scale={[0.2, 1, 1]}>
         <mesh castShadow>
           <boxGeometry args={[3.9, 0.075, 0.12]} />
           <meshStandardMaterial color="#fff7c7" emissive="#ffd84d" emissiveIntensity={1.4} />
@@ -599,7 +602,7 @@ function CitylineObject({
         </mesh>
       </group>
 
-      <group ref={subjectRef} position={[-1.9, -0.2, 0.55]}>
+      <group ref={subjectRef} position={[selectedScene.startX, -0.2, selectedScene.startZ]}>
         <mesh castShadow>
           <capsuleGeometry args={[0.09, 0.36, 5, 12]} />
           <meshStandardMaterial color="#fff7db" emissive="#ffd84d" emissiveIntensity={0.12} />

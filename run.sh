@@ -101,7 +101,7 @@ if [[ ! -d node_modules ]]; then
 fi
 
 FRONTEND_PORT="$(find_available_port "$FRONTEND_PORT")"
-LOCAL_URL="http://127.0.0.1:${FRONTEND_PORT}/"
+LOCAL_URL="http://localhost:${FRONTEND_PORT}/"
 NETWORK_URL="http://${HOST}:${FRONTEND_PORT}/"
 
 echo "Starting CityLine"
