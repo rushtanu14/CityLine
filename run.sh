@@ -100,6 +100,51 @@ if [[ ! -d node_modules ]]; then
   fi
 fi
 
+# Next.js (Turbopack) keeps a per-project dev lock. If a dev server is already
+# running for this repo, re-use it instead of trying to start a second one.
+LOCK_FILE=".next/dev/lock"
+if [[ -f "$LOCK_FILE" ]]; then
+  EXISTING_APP_URL="$(LOCK_FILE="$LOCK_FILE" node - <<'NODE'
+const fs = require("node:fs");
+try {
+  const lock = JSON.parse(fs.readFileSync(process.env.LOCK_FILE, "utf8"));
+  const pid = Number(lock?.pid);
+  if (!Number.isFinite(pid) || pid <= 0) process.exit(0);
+  try {
+    process.kill(pid, 0);
+  } catch {
+    process.exit(0);
+  }
+  const url = typeof lock?.appUrl === "string" ? lock.appUrl : "";
+  if (url) process.stdout.write(url);
+} catch {}
+NODE
+)"
+
+  if [[ -n "${EXISTING_APP_URL:-}" ]]; then
+    EXISTING_PID="$(LOCK_FILE="$LOCK_FILE" node - <<'NODE'
+const fs = require("node:fs");
+try {
+  const lock = JSON.parse(fs.readFileSync(process.env.LOCK_FILE, "utf8"));
+  const pid = Number(lock?.pid);
+  if (Number.isFinite(pid) && pid > 0) process.stdout.write(String(pid));
+} catch {}
+NODE
+)"
+
+    echo "CityLine dev server is already running:"
+    echo "$EXISTING_APP_URL"
+    if [[ -n "${EXISTING_PID:-}" ]]; then
+      echo "Tip: stop it with: kill ${EXISTING_PID}"
+    fi
+    open_browser "$EXISTING_APP_URL"
+    exit 0
+  fi
+
+  # Stale lock (server died): remove it so `next dev` can start cleanly.
+  rm -f "$LOCK_FILE" >/dev/null 2>&1 || true
+fi
+
 FRONTEND_PORT="$(find_available_port "$FRONTEND_PORT")"
 LOCAL_URL="http://localhost:${FRONTEND_PORT}/"
 NETWORK_URL="http://${HOST}:${FRONTEND_PORT}/"

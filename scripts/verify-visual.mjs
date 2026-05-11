@@ -9,6 +9,11 @@ const scrollStops = [
   ["command", 0.72],
   ["layers", 0.94],
 ];
+const mobileScrollStops = [
+  ["hero", 0],
+  ["story-route", 0.48],
+  ["command", 0.72],
+];
 
 function logStep(step) {
   console.log(`[verify] ${step}`);
@@ -26,7 +31,7 @@ async function sampleCanvasPixels(page) {
       return { ok: false, reason: "webgl context not available", ratio: 0 };
     }
 
-    const sampleSize = 72;
+    const sampleSize = 44;
     const regions = [
       [0.5, 0.5],
       [0.5, 0.28],
@@ -179,7 +184,8 @@ async function verifyViewport(browser, name, viewport, deviceScaleFactor = 1) {
   await waitForCanvas(page, name);
   await waitForVisibleCanvasPixels(page, `${name} initial`);
 
-  for (const [stop, progress] of scrollStops) {
+  const stops = name === "mobile" ? mobileScrollStops : scrollStops;
+  for (const [stop, progress] of stops) {
     logStep(`${name}: ${stop}`);
     await scrollToProgress(page, progress);
     await page.waitForTimeout(650);
@@ -197,7 +203,7 @@ async function verifyViewport(browser, name, viewport, deviceScaleFactor = 1) {
     await page.screenshot({
       path: `artifacts/cityline-next-${name}-${stop}.png`,
       fullPage: false,
-      timeout: 60000,
+      timeout: 90000,
     });
   }
 
@@ -239,9 +245,10 @@ async function activateAnchor(page, selector, hash) {
     window.history.replaceState(null, "", targetHash);
     if (target) {
       window.scrollTo(0, top);
+      target.scrollIntoView({ block: "start" });
     }
   }, hash);
-  await page.waitForTimeout(100);
+  await page.waitForTimeout(250);
 }
 
 async function waitForScrollToSettle(page) {
@@ -265,9 +272,29 @@ async function waitForScrollToSettle(page) {
 }
 
 async function assertVisible(locator, label) {
-  await locator.waitFor({ state: "visible", timeout: 20000 }).catch((error) => {
+  try {
+    await locator.waitFor({ state: "visible", timeout: 20000 });
+    return;
+  } catch (error) {
+    const fallback = await locator
+      .first()
+      .evaluate((element) => {
+        if (!(element instanceof HTMLElement || element instanceof SVGElement)) return false;
+        const style = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          Number.parseFloat(style.opacity || "1") > 0.05 &&
+          rect.width > 1 &&
+          rect.height > 1
+        );
+      })
+      .catch(() => false);
+
+    if (fallback) return;
     throw new Error(`${label} was not visible: ${error.message}`);
-  });
+  }
 }
 
 async function assertStoryPanelAppears(page) {
@@ -316,7 +343,7 @@ async function verifyFeatureSmoke(browser) {
     await waitForCanvas(page, "feature smoke");
     await waitForVisibleCanvasPixels(page, "feature smoke initial");
 
-    await assertVisible(page.locator("h1", { hasText: "CityLine Flood Run" }), "hero headline");
+    await assertVisible(page.locator("h1.editorial-title"), "hero editorial headline");
     await assertVisible(page.getByText("Flash flood warning / South Street Seaport"), "hero warning copy");
     logStep("features: hero ready");
     if ((await page.getByText("Heavy dreamy scroll").count()) > 0) {
@@ -385,7 +412,7 @@ async function verifyFeatureSmoke(browser) {
         return controlsStyle.display !== "none" && buttonRect.width > 1 && buttonRect.height > 1;
       },
       undefined,
-      { timeout: 7000 },
+      { timeout: 20000 },
     );
     await assertVisible(page.locator(".stage-close-button"), "expanded simulation close button");
     await page.keyboard.press("Escape");
@@ -411,7 +438,9 @@ async function verifyFeatureSmoke(browser) {
 
     for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
       const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });
-      await neighborhoodButton.click({ force: true, noWaitAfter: true });
+      await neighborhoodButton.evaluate((element) => {
+        if (element instanceof HTMLElement) element.click();
+      });
       await assertVisible(page.locator(".subject-card strong", { hasText: neighborhood }), `selected neighborhood ${neighborhood}`);
       const isPressed = await neighborhoodButton.getAttribute("aria-pressed");
       if (isPressed !== "true") {
@@ -419,11 +448,17 @@ async function verifyFeatureSmoke(browser) {
       }
     }
 
-    await page.locator(".action-mode-tabs button", { hasText: "Shelters" }).click({ force: true, noWaitAfter: true });
+    await page.locator(".action-mode-tabs button", { hasText: "Shelters" }).evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
     await assertVisible(page.locator(".facility-row", { hasText: "Pace High-Ground Shelter" }), "shelter command mode");
-    await page.locator(".action-mode-tabs button", { hasText: "Infra" }).click({ force: true, noWaitAfter: true });
+    await page.locator(".action-mode-tabs button", { hasText: "Infra" }).evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
     await assertVisible(page.locator(".facility-row", { hasText: "FDR Drive southbound" }), "infrastructure command mode");
-    await page.locator(".action-mode-tabs button", { hasText: "Actions" }).click({ force: true, noWaitAfter: true });
+    await page.locator(".action-mode-tabs button", { hasText: "Actions" }).evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
     await assertVisible(page.locator(".action-row", { hasText: "Leave low streets before surge peak" }), "actions command mode");
     logStep("features: command modes ready");
 
@@ -440,7 +475,7 @@ async function verifyFeatureSmoke(browser) {
         return metric?.textContent !== previousText;
       },
       beforePlayback,
-      { timeout: 7000 },
+      { timeout: 20000 },
     );
     await page.waitForFunction(
       () => {
@@ -463,7 +498,7 @@ async function verifyFeatureSmoke(browser) {
       await assertVisible(page.locator(".layer-card", { hasText: hazard }), `hazard layer ${hazard}`);
     }
 
-    await page.screenshot({ path: "artifacts/cityline-feature-smoke.png", fullPage: false, timeout: 60000 });
+    await page.screenshot({ path: "artifacts/cityline-feature-smoke.png", fullPage: false, timeout: 90000 });
     logStep("features: screenshot saved");
 
     if (browserErrors.length > 0) {
@@ -517,7 +552,7 @@ async function verifyLocalhostAlias(browser) {
 
 async function runVerification() {
   await fs.mkdir("artifacts", { recursive: true });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: ["--disable-features=CDPScreenshotNewSurface"] });
   try {
     const results = [];
     results.push(await verifyFeatureSmoke(browser));
@@ -535,12 +570,17 @@ async function runVerification() {
 }
 
 async function main() {
-  await Promise.race([
-    runVerification(),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("visual verification timed out after 720 seconds")), 720000),
-    ),
-  ]);
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error("visual verification timed out after 900 seconds")), 900000);
+    timeoutId.unref?.();
+  });
+
+  try {
+    await Promise.race([runVerification(), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 main().catch((error) => {

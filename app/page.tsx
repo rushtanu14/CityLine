@@ -363,10 +363,10 @@ export default function Page() {
 
   const cityModelCredit =
     cityModelSource === "external"
-      ? "External GLB from model marketplace endpoint"
+      ? "External city GLB"
       : cityModelSource === "sample"
-        ? "Bundled GLB city sample + CityLine flood layer"
-        : "Procedural open-data-style footprint city";
+        ? "Bundled GLB city"
+        : "Detailed generated city";
   const selected = neighborhoods.find((item) => item.id === selectedNeighborhood) ?? neighborhoods[0];
   const selectedFacilities = useMemo(
     () =>
@@ -517,7 +517,7 @@ export default function Page() {
       <div className="canvas-layer">
         <Canvas
           data-cityline-canvas="true"
-          dpr={motion.isMobile ? [1, 1.35] : [1, 1.75]}
+          dpr={motion.isMobile ? [1, 1.15] : [1, 1.4]}
           shadows
           gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
           onCreated={({ gl }) => {
@@ -563,15 +563,22 @@ export default function Page() {
         variants={sceneReveal}
       >
         <FMotion.div className="hero-copy glass-copy">
+          <div className="hero-card-index" aria-hidden="true">
+            <span>Card</span>
+            <strong>03</strong>
+          </div>
           <div className="poster-meta">
             <span>NYC FLOOD OPS</span>
-            <span>R3F / GSAP / LENIS</span>
+            <span>Scroll / route / act</span>
           </div>
           <p className="kicker">Flash flood warning / South Street Seaport</p>
-          <h1>CityLine Flood Run</h1>
+          <h1 className="editorial-title" aria-label="CityLine Flood Run">
+            <span>City</span>
+            <span>Line</span>
+          </h1>
           <p className="hero-body">
-            A cinematic civic-resilience landing page where a real NYC skyline becomes a scroll-controlled flood story,
-            then resolves into an interactive escape simulator.
+            [ The river pressure is visible before the street fails. CityLine turns that tension into a route,
+            a subject, and a decision window. ]
           </p>
           <div className="hero-actions">
             <FMotion.a href="#command" onClick={handleSectionLink("command")} whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.985 }}>
@@ -697,7 +704,7 @@ export default function Page() {
                 >
               {shouldRenderSimulator ? (
                 <Canvas
-                  dpr={motion.isMobile ? [1, 1.2] : [1, 1.55]}
+                  dpr={motion.isMobile ? [1, 1.08] : [1, 1.25]}
                   shadows
                   gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
                 >
@@ -1407,13 +1414,13 @@ function CinematicScene({
   return (
     <>
       <PerspectiveCamera makeDefault position={[0, 2.15, 7.6]} fov={motion.isMobile ? 50 : 41} />
-      <color attach="background" args={["#24384e"]} />
-      <fog attach="fog" args={["#506c82", 8, 20]} />
-      <ambientLight intensity={1.06} color="#cfe8ff" />
-      <directionalLight position={[-5, 7, 5]} intensity={3.4} color="#d8efff" castShadow shadow-mapSize={[1024, 1024]} />
-      <spotLight position={[4, 6.8, 6]} angle={0.42} penumbra={0.82} intensity={48} color="#ff4f87" castShadow />
-      <pointLight position={[-3.8, 2, 1.6]} intensity={30} color="#6e4bff" />
-      <pointLight position={[4, 2.2, -1.8]} intensity={22} color="#8be9ff" />
+      <color attach="background" args={["#030304"]} />
+      <fog attach="fog" args={["#08080a", 9, 21]} />
+      <ambientLight intensity={0.58} color="#f6f7fb" />
+      <directionalLight position={[-5, 7, 5]} intensity={3.8} color="#f8fbff" castShadow shadow-mapSize={[1024, 1024]} />
+      <spotLight position={[4, 6.8, 6]} angle={0.42} penumbra={0.82} intensity={62} color="#f7f7f2" castShadow />
+      <pointLight position={[-3.8, 2, 1.6]} intensity={22} color="#ff365c" />
+      <pointLight position={[4, 2.2, -1.8]} intensity={24} color="#24dfff" />
       <Float speed={0.82} rotationIntensity={0.1} floatIntensity={0.18}>
         <CitylineObject
           motion={motion}
@@ -1501,10 +1508,10 @@ function SimulatorScene({
         position={isExpanded ? [4.8, 4.65, 6.85] : [3.7, 3.35, 5.35]}
         fov={isExpanded ? 48 : 38}
       />
-      <color attach="background" args={["#263d52"]} />
-      <fog attach="fog" args={["#557184", 7, 15]} />
-      <ambientLight intensity={1.18} color="#d2ecff" />
-      <directionalLight position={[-3.8, 7, 4.2]} intensity={3.7} color="#dbefff" castShadow />
+      <color attach="background" args={["#070708"]} />
+      <fog attach="fog" args={["#111114", 7, 15]} />
+      <ambientLight intensity={0.9} color="#f6f7fb" />
+      <directionalLight position={[-3.8, 7, 4.2]} intensity={4.1} color="#f8fbff" castShadow />
       <pointLight position={[-2.8, 1.4, 1.8]} intensity={18} color="#ff4f87" />
       <pointLight position={[3.2, 1.6, -1.2]} intensity={16} color="#59d7ff" />
       <group ref={modelRef} position={[0, 0.15, 0]} scale={1.08}>
@@ -1632,6 +1639,106 @@ function SimulatorScene({
   );
 }
 
+function ChromeRouteSculpture({ motion }: { motion: MotionState }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const baseY = motion.isMobile ? 0.26 : 0.08;
+  const curves = useMemo(
+    () => [
+      new THREE.CatmullRomCurve3(
+        [
+          new THREE.Vector3(-2.9, 0.04, 0.32),
+          new THREE.Vector3(-1.72, 1.06, -0.44),
+          new THREE.Vector3(0.36, 0.38, -0.92),
+          new THREE.Vector3(2.42, 1.18, 0.18),
+          new THREE.Vector3(1.62, -0.04, 0.78),
+          new THREE.Vector3(-0.92, 0.52, 0.92),
+        ],
+        true,
+      ),
+      new THREE.CatmullRomCurve3(
+        [
+          new THREE.Vector3(-2.24, -0.28, 0.72),
+          new THREE.Vector3(-0.82, 0.92, 0.14),
+          new THREE.Vector3(1.32, 0.72, -0.82),
+          new THREE.Vector3(2.7, -0.06, 0.24),
+          new THREE.Vector3(0.46, -0.34, 0.86),
+        ],
+        true,
+      ),
+    ],
+    [],
+  );
+  const tubeGeometries = useMemo(
+    () => curves.map((curve, index) => new THREE.TubeGeometry(curve, 64, index === 0 ? 0.066 : 0.038, 8, true)),
+    [curves],
+  );
+
+  useFrame((state) => {
+    const elapsed = state.clock.elapsedTime;
+    if (!groupRef.current) return;
+    groupRef.current.rotation.y = THREE.MathUtils.lerp(
+      groupRef.current.rotation.y,
+      -0.36 + motion.scroll * 0.48 + motion.mouseX * 0.18,
+      0.05,
+    );
+    groupRef.current.rotation.x = THREE.MathUtils.lerp(
+      groupRef.current.rotation.x,
+      -0.16 + motion.mouseY * 0.12,
+      0.05,
+    );
+    groupRef.current.position.y = baseY + Math.sin(elapsed * 0.6) * 0.04 - motion.scroll * 0.12;
+  });
+
+  return (
+    <group
+      ref={groupRef}
+      position={motion.isMobile ? [0.32, baseY, 0.86] : [1.12, baseY, 1.18]}
+      scale={motion.isMobile ? 0.86 : 1.42}
+      rotation={[-0.16, -0.58, -0.12]}
+    >
+      {tubeGeometries.map((geometry, index) => (
+        <mesh key={`chrome-route-${index}`} geometry={geometry} castShadow receiveShadow>
+          <meshStandardMaterial
+            color={index === 0 ? "#f7f7f2" : "#cfd4dc"}
+            metalness={0.88}
+            roughness={0.12}
+            emissive="#ffffff"
+            emissiveIntensity={index === 0 ? 0.06 : 0.035}
+            transparent
+            opacity={index === 0 ? 0.96 : 0.84}
+          />
+        </mesh>
+      ))}
+      <mesh position={[0.46, 0.08, 0.26]} rotation={[1.28, 0.34, 0.62]} castShadow>
+        <torusGeometry args={[1.14, 0.04, 10, 96]} />
+        <meshStandardMaterial
+          color="#f9faf8"
+          metalness={0.82}
+          roughness={0.1}
+          emissive="#ffffff"
+          emissiveIntensity={0.055}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      {[
+        ["#ff365c", -1.26, 0.44, 0.18, 0.16],
+        ["#21dfff", 0.92, 0.72, -0.18, -0.12],
+        ["#f8f4e8", 0.18, -0.34, 0.78, 0.06],
+      ].map(([color, x, y, z, rotation], index) => (
+        <mesh
+          key={`prism-line-${index}`}
+          position={[Number(x), Number(y), Number(z)]}
+          rotation={[0.28, Number(rotation), -0.44]}
+        >
+          <boxGeometry args={[1.34, 0.025, 0.025]} />
+          <meshStandardMaterial color={String(color)} emissive={String(color)} emissiveIntensity={1.4} transparent opacity={0.78} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function CitylineObject({
   motion,
   routeState,
@@ -1654,6 +1761,9 @@ function CitylineObject({
   const [routeEndX, routeEndZ] = sceneRouteState.end;
   const routeAngle = Math.atan2(routeEndZ - routeStartZ, routeEndX - routeStartX || 0.0001);
   const routeScale = Math.max(0.2, 0.2 + motion.route * 0.9);
+  const cityRevealScale = THREE.MathUtils.lerp(motion.isMobile ? 0.64 : 0.56, 1, motion.scroll);
+  const cityRevealY = THREE.MathUtils.lerp(motion.isMobile ? -0.72 : -0.76, -0.56, motion.scroll);
+  const cityRevealZ = THREE.MathUtils.lerp(motion.isMobile ? -1.16 : -1.72, 0.18, motion.scroll);
 
   useEffect(() => {
     cityTexture.colorSpace = THREE.SRGBColorSpace;
@@ -1725,15 +1835,17 @@ function CitylineObject({
       <group ref={photoRef}>
         <mesh position={[0, 0.96, -3.05]} scale={[7.2, 4.8, 1]}>
           <planeGeometry args={[1, 1, 80, 8]} />
-          <meshBasicMaterial map={cityTexture} toneMapped={false} transparent opacity={0.98} />
+          <meshBasicMaterial map={cityTexture} toneMapped={false} transparent opacity={0.34} />
         </mesh>
         <mesh position={[0, -1.12, -1.74]} rotation={[Math.PI, 0, 0]} scale={[7.1, 1.38, 1]}>
           <planeGeometry args={[1, 1, 80, 8]} />
-          <meshBasicMaterial map={cityTexture} toneMapped={false} transparent opacity={0.16} />
+          <meshBasicMaterial map={cityTexture} toneMapped={false} transparent opacity={0.1} />
         </mesh>
       </group>
 
-      <group position={[0, -0.56, 0.18]}>
+      <ChromeRouteSculpture motion={motion} />
+
+      <group position={[0, cityRevealY, cityRevealZ]} scale={cityRevealScale}>
         <mesh castShadow receiveShadow rotation={[0, 0.06, 0]}>
           <boxGeometry args={[6.1, 0.22, 3.75]} />
           <meshPhysicalMaterial
