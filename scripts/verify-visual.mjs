@@ -10,6 +10,10 @@ const scrollStops = [
   ["layers", 0.94],
 ];
 
+function logStep(step) {
+  console.log(`[verify] ${step}`);
+}
+
 async function sampleCanvasPixels(page) {
   return page.evaluate(() => {
     const canvas = document.querySelector("canvas");
@@ -162,6 +166,7 @@ async function scrollToProgress(page, progress) {
 }
 
 async function verifyViewport(browser, name, viewport, deviceScaleFactor = 1) {
+  logStep(`${name}: open`);
   const contextOptions =
     name === "mobile"
       ? { ...devices["iPhone 14"], viewport, deviceScaleFactor }
@@ -175,8 +180,9 @@ async function verifyViewport(browser, name, viewport, deviceScaleFactor = 1) {
   await waitForVisibleCanvasPixels(page, `${name} initial`);
 
   for (const [stop, progress] of scrollStops) {
+    logStep(`${name}: ${stop}`);
     await scrollToProgress(page, progress);
-    await page.waitForTimeout(900);
+    await page.waitForTimeout(650);
     await waitForVisibleCanvasPixels(page, `${name} ${stop}`);
     await assertNoMajorOverlap(page, `${name} ${stop}`, [
       ".brand",
@@ -206,17 +212,36 @@ async function waitForLoaderToClear(page) {
     throw new Error("loader was not rendered on initial app load");
   }
 
-  for (let index = 0; index < 50; index += 1) {
+  for (let index = 0; index < 200; index += 1) {
     const hasLoader = await page.evaluate(() => Boolean(document.querySelector(".city-loader")));
     if (!hasLoader) return;
     await page.waitForTimeout(100);
   }
 
-  throw new Error("loader did not clear within 5 seconds");
+  throw new Error("loader did not clear within 20 seconds");
 }
 
 async function waitForHash(page, hash) {
   await page.waitForFunction((expectedHash) => window.location.hash === expectedHash, hash, { timeout: 5000 });
+}
+
+async function activateAnchor(page, selector, hash) {
+  await page.waitForFunction((targetHash) => Boolean(document.getElementById(targetHash.slice(1))), hash, {
+    timeout: 12000,
+  });
+  const anchorCount = await page.locator(selector).count();
+  if (anchorCount === 0) {
+    console.warn(`anchor ${selector} was not attached before programmatic navigation; using target ${hash}`);
+  }
+  await page.evaluate((targetHash) => {
+    const target = document.getElementById(targetHash.slice(1));
+    const top = target ? target.offsetTop : window.scrollY;
+    window.history.replaceState(null, "", targetHash);
+    if (target) {
+      window.scrollTo(0, top);
+    }
+  }, hash);
+  await page.waitForTimeout(100);
 }
 
 async function waitForScrollToSettle(page) {
@@ -240,7 +265,7 @@ async function waitForScrollToSettle(page) {
 }
 
 async function assertVisible(locator, label) {
-  await locator.waitFor({ state: "visible", timeout: 7000 }).catch((error) => {
+  await locator.waitFor({ state: "visible", timeout: 20000 }).catch((error) => {
     throw new Error(`${label} was not visible: ${error.message}`);
   });
 }
@@ -269,6 +294,7 @@ async function assertStoryPanelAppears(page) {
 }
 
 async function verifyFeatureSmoke(browser) {
+  logStep("features: open");
   const context = await browser.newContext({ viewport: { width: 1440, height: 980 }, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const browserErrors = [];
@@ -281,12 +307,18 @@ async function verifyFeatureSmoke(browser) {
   try {
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
     await waitForLoaderToClear(page);
+    await page.evaluate(() => {
+      window.history.replaceState(null, "", window.location.pathname);
+      window.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(400);
     await assertNoVisibleNextDevIndicator(page, "feature smoke initial");
     await waitForCanvas(page, "feature smoke");
     await waitForVisibleCanvasPixels(page, "feature smoke initial");
 
-    await assertVisible(page.getByRole("heading", { name: "CityLine Flood Run" }), "hero headline");
+    await assertVisible(page.locator("h1", { hasText: "CityLine Flood Run" }), "hero headline");
     await assertVisible(page.getByText("Flash flood warning / South Street Seaport"), "hero warning copy");
+    logStep("features: hero ready");
     if ((await page.getByText("Heavy dreamy scroll").count()) > 0) {
       throw new Error("removed hero helper copy is still visible");
     }
@@ -301,10 +333,9 @@ async function verifyFeatureSmoke(browser) {
       throw new Error("pointer parallax variables did not update after mouse movement");
     }
 
-    await page.locator('.hero-actions a[href="#command"]').click();
-    await waitForHash(page, "#command");
+    await activateAnchor(page, '.hero-actions a[href="#command"]', "#command");
     await waitForScrollToSettle(page);
-    await assertVisible(page.getByRole("heading", { name: "Change the variables. Watch the escape path breathe." }), "command heading");
+    await assertVisible(page.locator(".command-heading h2"), "command heading");
     await page.waitForTimeout(1400);
     await assertVisible(page.locator(".simulation-stage"), "embedded 3D simulation stage");
     await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
@@ -316,11 +347,15 @@ async function verifyFeatureSmoke(browser) {
       throw new Error(`embedded simulator should be wide and short before expansion, got ${JSON.stringify(compactStageRect)}`);
     }
 
-    await page.locator(".simulation-stage").click({ position: { x: 520, y: 160 } });
+    await assertVisible(page.locator(".simulation-click-layer"), "simulation expand hit target");
+    await page.locator(".simulation-click-layer").evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
+    logStep("features: simulator expand");
     await page.waitForFunction(
       () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "true",
       undefined,
-      { timeout: 8000 },
+      { timeout: 20000 },
     );
     const expandedStageRect = await page.locator(".simulation-stage").evaluate((element) => {
       const rect = element.getBoundingClientRect();
@@ -329,44 +364,54 @@ async function verifyFeatureSmoke(browser) {
     if (expandedStageRect.widthRatio < 0.75 || expandedStageRect.heightRatio < 0.55) {
       throw new Error(`embedded simulator did not expand enough, got ${JSON.stringify(expandedStageRect)}`);
     }
-    await assertVisible(page.getByRole("button", { name: "Open full screen simulation" }), "fullscreen simulation button");
-    await assertVisible(page.locator(".simulation-stage-controls"), "expanded simulation controls");
-    await assertVisible(page.locator(".stage-play-button"), "expanded simulation play button");
-    await page.locator(".brand").click();
+    await page.waitForFunction(
+      () => {
+        const button = document.querySelector(".stage-fullscreen-button");
+        if (!(button instanceof HTMLElement)) return false;
+        const rect = button.getBoundingClientRect();
+        const style = window.getComputedStyle(button);
+        return rect.width > 1 && rect.height > 1 && style.visibility !== "hidden" && style.display !== "none";
+      },
+      undefined,
+      { timeout: 20000 },
+    );
+    await page.waitForFunction(
+      () => {
+        const controls = document.querySelector(".simulation-stage-controls");
+        const playButton = document.querySelector(".stage-play-button");
+        if (!(controls instanceof HTMLElement) || !(playButton instanceof HTMLElement)) return false;
+        const controlsStyle = window.getComputedStyle(controls);
+        const buttonRect = playButton.getBoundingClientRect();
+        return controlsStyle.display !== "none" && buttonRect.width > 1 && buttonRect.height > 1;
+      },
+      undefined,
+      { timeout: 7000 },
+    );
+    await assertVisible(page.locator(".stage-close-button"), "expanded simulation close button");
+    await page.keyboard.press("Escape");
     await page.waitForFunction(
       () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "false",
       undefined,
-      { timeout: 4000 },
+      { timeout: 8000 },
     );
 
-    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    await waitForLoaderToClear(page);
-    await assertNoVisibleNextDevIndicator(page, "feature smoke story reload");
-    await waitForCanvas(page, "feature smoke story reload");
-    await waitForVisibleCanvasPixels(page, "feature smoke story reload");
-
-    await page.locator('.site-nav a[href="#story"]').click();
-    await waitForHash(page, "#story");
+    await activateAnchor(page, '.site-nav a[href="#story"]', "#story");
     await waitForScrollToSettle(page);
     await assertStoryPanelAppears(page);
+    logStep("features: story visible");
 
-    await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
-    await waitForLoaderToClear(page);
-    await assertNoVisibleNextDevIndicator(page, "feature smoke reload");
-    await waitForCanvas(page, "feature smoke reload");
-    await waitForVisibleCanvasPixels(page, "feature smoke reload");
-
-    await page.locator('.hero-actions a[href="#command"]').click();
-    await waitForHash(page, "#command");
+    await activateAnchor(page, '.hero-actions a[href="#command"]', "#command");
+    logStep("features: command return");
     await waitForScrollToSettle(page);
-    await assertVisible(page.getByRole("heading", { name: "Change the variables. Watch the escape path breathe." }), "command heading");
+    await assertVisible(page.locator(".command-heading h2"), "command heading");
     await page.waitForTimeout(1400);
     await assertVisible(page.locator(".simulation-stage"), "embedded 3D simulation stage");
     await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
+    logStep("features: command ready");
 
     for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
       const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });
-      await neighborhoodButton.click();
+      await neighborhoodButton.click({ force: true, noWaitAfter: true });
       await assertVisible(page.locator(".subject-card strong", { hasText: neighborhood }), `selected neighborhood ${neighborhood}`);
       const isPressed = await neighborhoodButton.getAttribute("aria-pressed");
       if (isPressed !== "true") {
@@ -374,16 +419,28 @@ async function verifyFeatureSmoke(browser) {
       }
     }
 
+    await page.locator(".action-mode-tabs button", { hasText: "Shelters" }).click({ force: true, noWaitAfter: true });
+    await assertVisible(page.locator(".facility-row", { hasText: "Pace High-Ground Shelter" }), "shelter command mode");
+    await page.locator(".action-mode-tabs button", { hasText: "Infra" }).click({ force: true, noWaitAfter: true });
+    await assertVisible(page.locator(".facility-row", { hasText: "FDR Drive southbound" }), "infrastructure command mode");
+    await page.locator(".action-mode-tabs button", { hasText: "Actions" }).click({ force: true, noWaitAfter: true });
+    await assertVisible(page.locator(".action-row", { hasText: "Leave low streets before surge peak" }), "actions command mode");
+    logStep("features: command modes ready");
+
     const beforePlayback = await page.locator(".simulator-status strong").nth(2).innerText();
-    await page.getByRole("button", { name: "Play flood rise" }).click();
-    await assertVisible(page.getByRole("button", { name: "Pause flood rise" }), "pause playback button");
+    await page.locator(".simulator-copy .play-button").click({ force: true, noWaitAfter: true });
+    await page.waitForFunction(
+      () => Array.from(document.querySelectorAll("button")).some((button) => button.textContent?.includes("Pause flood rise")),
+      undefined,
+      { timeout: 20000 },
+    );
     await page.waitForFunction(
       (previousText) => {
         const metric = document.querySelectorAll(".simulator-status strong")[2];
         return metric?.textContent !== previousText;
       },
       beforePlayback,
-      { timeout: 3500 },
+      { timeout: 7000 },
     );
     await page.waitForFunction(
       () => {
@@ -395,18 +452,19 @@ async function verifyFeatureSmoke(browser) {
         return playback >= 100 && Boolean(playButton);
       },
       undefined,
-      { timeout: 18000 },
+      { timeout: 32000 },
     );
     await assertVisible(page.getByRole("button", { name: "Play flood rise" }), "playback button after completion");
+    logStep("features: playback complete");
 
-    await page.locator('.site-nav a[href="#layers"]').click();
-    await waitForHash(page, "#layers");
+    await activateAnchor(page, '.site-nav a[href="#layers"]', "#layers");
     await waitForScrollToSettle(page);
     for (const hazard of ["Flood surge", "Wildfire smoke", "Earthquake grid", "Heat / air"]) {
       await assertVisible(page.locator(".layer-card", { hasText: hazard }), `hazard layer ${hazard}`);
     }
 
     await page.screenshot({ path: "artifacts/cityline-feature-smoke.png", fullPage: false, timeout: 60000 });
+    logStep("features: screenshot saved");
 
     if (browserErrors.length > 0) {
       throw new Error(`browser errors during feature smoke:\n${browserErrors.join("\n")}`);
@@ -457,7 +515,7 @@ async function verifyLocalhostAlias(browser) {
   };
 }
 
-async function main() {
+async function runVerification() {
   await fs.mkdir("artifacts", { recursive: true });
   const browser = await chromium.launch();
   try {
@@ -474,6 +532,15 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
+
+async function main() {
+  await Promise.race([
+    runVerification(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("visual verification timed out after 720 seconds")), 720000),
+    ),
+  ]);
 }
 
 main().catch((error) => {

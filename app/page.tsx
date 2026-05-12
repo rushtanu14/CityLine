@@ -24,11 +24,12 @@ import {
   Pause,
   Play,
   RadioTower,
+  X,
 } from "lucide-react";
-import { AnimatePresence, motion as FMotion } from "framer-motion";
+import { motion as FMotion } from "framer-motion";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { facilities, hazards, neighborhoods, routes } from "../src/data/cityData";
+import { facilities, hazards, infrastructure, neighborhoods, routes } from "../src/data/cityData";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -42,7 +43,7 @@ type MotionState = {
   isMobile: boolean;
 };
 
-type CityModelSource = "procedural" | "external";
+type CityModelSource = "procedural" | "sample" | "external";
 
 type RouteState = {
   start: [number, number];
@@ -53,7 +54,10 @@ type RouteState = {
   destinationName: string;
 };
 
+type CommandMode = "actions" | "shelters" | "infra";
+
 const CITY_MODEL_URL = process.env.NEXT_PUBLIC_CITYLINE_CITY_MODEL_URL?.trim() ?? "";
+const LOCAL_CITY_MODEL_URL = "/assets/littlest-tokyo.glb";
 const CITY_MODEL_SOURCE_PRESET: CityModelSource = CITY_MODEL_URL ? "external" : "procedural";
 const CITY_SCALE = 0.42;
 const CITY_BOUNDS = {
@@ -86,6 +90,18 @@ const storyPanels = [
     body: "The subject stays visible while CityLine rotates from cinematic story into practical route intelligence.",
     stat: "12 min walk",
   },
+];
+
+const scenarioLevers = [
+  { label: "Rainfall", value: "2.8 in/hr", tone: "blue" },
+  { label: "Tide surge", value: "+3.8 ft", tone: "pink" },
+  { label: "Drainage", value: "62% load", tone: "violet" },
+];
+
+const commandModes: Array<{ id: CommandMode; label: string }> = [
+  { id: "actions", label: "Actions" },
+  { id: "shelters", label: "Shelters" },
+  { id: "infra", label: "Infra" },
 ];
 
 const sceneReveal: Record<string, any> = {
@@ -135,8 +151,10 @@ export default function Page() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isStageExpanded, setIsStageExpanded] = useState(false);
   const [isStageFullscreen, setIsStageFullscreen] = useState(false);
+  const [isCommandPast, setIsCommandPast] = useState(false);
   const [cityModelSource, setCityModelSource] = useState<CityModelSource>(CITY_MODEL_SOURCE_PRESET);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(neighborhoods[0].id);
+  const [commandMode, setCommandMode] = useState<CommandMode>("actions");
   const playbackRef = useRef<{ startedAt: number; startFlood: number; startSim: number } | null>(null);
   const simulationStageRef = useRef<HTMLDivElement | null>(null);
 
@@ -278,11 +296,64 @@ export default function Page() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isStageExpanded || isStageFullscreen) return;
+
+    const handleOutsideStagePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && simulationStageRef.current?.contains(target)) return;
+      setIsStageExpanded(false);
+    };
+
+    document.addEventListener("pointerdown", handleOutsideStagePointer, true);
+    return () => document.removeEventListener("pointerdown", handleOutsideStagePointer, true);
+  }, [isStageExpanded, isStageFullscreen]);
+
+  useEffect(() => {
+    if (!isStageExpanded || isStageFullscreen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsStageExpanded(false);
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [isStageExpanded, isStageFullscreen]);
+
+  useEffect(() => {
+    const updateCommandPast = () => {
+      const command = document.getElementById("command");
+      if (!command) return;
+      setIsCommandPast(window.scrollY > command.offsetTop + command.offsetHeight * 0.76);
+    };
+
+    updateCommandPast();
+    window.addEventListener("scroll", updateCommandPast, { passive: true });
+    window.addEventListener("resize", updateCommandPast);
+    return () => {
+      window.removeEventListener("scroll", updateCommandPast);
+      window.removeEventListener("resize", updateCommandPast);
+    };
+  }, []);
+
   const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const x = event.clientX / window.innerWidth - 0.5;
     const y = event.clientY / window.innerHeight - 0.5;
     setMotion((current) => ({ ...current, mouseX: x, mouseY: y }));
   };
+
+  const handleSectionLink =
+    (targetId: string) =>
+    (event: React.MouseEvent<HTMLAnchorElement>) => {
+      event.preventDefault();
+      const target = document.getElementById(targetId);
+      window.history.pushState(null, "", `#${targetId}`);
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top, behavior: "smooth" });
+      }
+      window.setTimeout(() => ScrollTrigger.update(), 80);
+    };
 
   const handlePagePointerDown = (event: React.PointerEvent<HTMLElement>) => {
     const target = event.target;
@@ -290,8 +361,20 @@ export default function Page() {
     if (!isStageFullscreen) setIsStageExpanded(false);
   };
 
-  const cityModelCredit = cityModelSource === "external" ? "External GLB (Sketchfab/CGTrader/Meshy compatible endpoint)" : "Procedural NYC-inspired block grid";
+  const cityModelCredit =
+    cityModelSource === "external"
+      ? "External GLB from model marketplace endpoint"
+      : cityModelSource === "sample"
+        ? "Bundled GLB city sample + CityLine flood layer"
+        : "Procedural open-data-style footprint city";
   const selected = neighborhoods.find((item) => item.id === selectedNeighborhood) ?? neighborhoods[0];
+  const selectedFacilities = useMemo(
+    () =>
+      facilities.filter((facility) =>
+        [...selected.nearestShelterIds, ...selected.nearestHospitalIds].includes(facility.id),
+      ),
+    [selected],
+  );
   const selectedRoute = useMemo(() => {
     const route = routes.find((item) => item.id === selected.recommendedRouteId) ?? routes[0];
     const routePointsScene = route.path.map((entry) => [
@@ -319,6 +402,7 @@ export default function Page() {
       destinationName: destinationFacility?.name ?? fallbackFacility?.name ?? "Designated shelter",
     } satisfies RouteState;
   }, [selected]);
+  const shouldRenderSimulator = motion.scroll > 0.54 || isStageExpanded || isStageFullscreen;
 
   const handlePlaybackToggle = () => {
     if (isPlaying) {
@@ -389,28 +473,25 @@ export default function Page() {
       onPointerMove={handlePointerMove}
       onPointerDown={handlePagePointerDown}
     >
-      <AnimatePresence>
-        {!isLoaderDismissed && (
-          <FMotion.div
-            className={`city-loader ${loaderProgress >= 100 ? "is-exiting" : ""}`}
-            role="status"
-            aria-live="polite"
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            variants={cinematicFade}
-          >
-            <FMotion.div className="loader-card" variants={panelLift} initial="hidden" animate="visible">
-              <span className="loader-eyebrow">CityLine initializing</span>
-              <strong>{Math.round(loaderProgress).toString().padStart(2, "0")}%</strong>
-              <div className="loader-track" aria-hidden="true">
-                <span style={{ transform: `scaleX(${loaderProgress / 100})` }} />
-              </div>
-              <p>Loading flood route, Seaport city stage, and emergency layers.</p>
-            </FMotion.div>
+      {!isLoaderDismissed && (
+        <FMotion.div
+          className={`city-loader ${loaderProgress >= 100 ? "is-exiting" : ""}`}
+          role="status"
+          aria-live="polite"
+          initial="hidden"
+          animate="visible"
+          variants={cinematicFade}
+        >
+          <FMotion.div className="loader-card" variants={panelLift} initial="hidden" animate="visible">
+            <span className="loader-eyebrow">CityLine initializing</span>
+            <strong>{Math.round(loaderProgress).toString().padStart(2, "0")}%</strong>
+            <div className="loader-track" aria-hidden="true">
+              <span style={{ transform: `scaleX(${loaderProgress / 100})` }} />
+            </div>
+            <p>Loading flood route, Seaport city stage, and emergency layers.</p>
           </FMotion.div>
-        )}
-      </AnimatePresence>
+        </FMotion.div>
+      )}
       <div className="city-photo-layer" style={{ transform: photoTransform }} aria-hidden="true" />
       <div className="gradient-backdrop" aria-hidden="true" />
       <div className="motion-field" aria-hidden="true">
@@ -418,6 +499,21 @@ export default function Page() {
         <span />
         <span />
       </div>
+      {isStageExpanded && !isStageFullscreen ? (
+        <button
+          className="stage-dismiss-layer"
+          type="button"
+          aria-label="Close expanded simulation"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            setIsStageExpanded(false);
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsStageExpanded(false);
+          }}
+        />
+      ) : null}
       <div className="canvas-layer">
         <Canvas
           data-cityline-canvas="true"
@@ -445,16 +541,16 @@ export default function Page() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.75 }}
       >
-        <a className="brand" href="#top" aria-label="CityLine home">
+        <a className="brand" href="#top" aria-label="CityLine home" onClick={handleSectionLink("top")}>
           <span>
             <RadioTower size={22} />
           </span>
           <strong>CityLine</strong>
         </a>
         <nav>
-          <a href="#story">Story</a>
-          <a href="#command">Command</a>
-          <a href="#layers">Layers</a>
+          <a href="#story" onClick={handleSectionLink("story")}>Story</a>
+          <a href="#command" onClick={handleSectionLink("command")}>Command</a>
+          <a href="#layers" onClick={handleSectionLink("layers")}>Layers</a>
         </nav>
       </FMotion.header>
 
@@ -478,7 +574,7 @@ export default function Page() {
             then resolves into an interactive escape simulator.
           </p>
           <div className="hero-actions">
-            <FMotion.a href="#command" whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.985 }}>
+            <FMotion.a href="#command" onClick={handleSectionLink("command")} whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.985 }}>
               Open simulator
             </FMotion.a>
             <span className="city-source-pill">{cityModelCredit}</span>
@@ -505,7 +601,7 @@ export default function Page() {
         ))}
       </section>
 
-        <section id="command" className={`command-section ${motion.scroll > 0.88 ? "is-past" : ""}`}>
+      <section id="command" className={`command-section ${isCommandPast ? "is-past" : ""}`}>
           <FMotion.div
             className="command-heading glass-copy"
             initial="visible"
@@ -542,7 +638,14 @@ export default function Page() {
                 className={cityModelSource === "procedural" ? "is-active" : ""}
                 onClick={() => setCityModelSource("procedural")}
               >
-                Procedural city
+                Generated
+              </button>
+              <button
+                type="button"
+                className={cityModelSource === "sample" ? "is-active" : ""}
+                onClick={() => setCityModelSource("sample")}
+              >
+                GLB sample
               </button>
               <button
                 type="button"
@@ -559,8 +662,7 @@ export default function Page() {
               </button>
             </div>
             <p className="source-note">
-              External source: Sketchfab / CGTrader / Meshy.ai links can be wired by setting
-              <code>NEXT_PUBLIC_CITYLINE_CITY_MODEL_URL</code>.
+              3D sources: generated footprints, bundled GLB sample, marketplace-ready GLB, future CityGML conversion.
             </p>
             <div className="neighborhood-list">
               {neighborhoods.map((item) => (
@@ -585,25 +687,48 @@ export default function Page() {
           >
                 <div
                   ref={simulationStageRef}
-              className={`simulation-stage ${isStageExpanded ? "is-expanded" : ""} ${isStageFullscreen ? "is-fullscreen" : ""}`}
+                  className={`simulation-stage ${isStageExpanded ? "is-expanded" : ""} ${isStageFullscreen ? "is-fullscreen" : ""}`}
                   aria-label="3D flood simulation"
                   onPointerDown={handleStagePointerDown}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsStageExpanded(true);
+                  }}
                 >
-              <Canvas
-                dpr={motion.isMobile ? [1, 1.2] : [1, 1.55]}
-                shadows
-                gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
-              >
-                <Suspense fallback={null}>
-                  <SimulatorScene
-                    motion={motion}
-                    selectedNeighborhoodId={selectedNeighborhood}
-                    routeState={selectedRoute}
-                    cityModelSource={cityModelSource}
-                    isExpanded={isStageExpanded || isStageFullscreen}
-                  />
-                </Suspense>
-              </Canvas>
+              {shouldRenderSimulator ? (
+                <Canvas
+                  dpr={motion.isMobile ? [1, 1.2] : [1, 1.55]}
+                  shadows
+                  gl={{ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" }}
+                >
+                  <Suspense fallback={null}>
+                    <SimulatorScene
+                      motion={motion}
+                      selectedNeighborhoodId={selectedNeighborhood}
+                      routeState={selectedRoute}
+                      cityModelSource={cityModelSource}
+                      isExpanded={isStageExpanded || isStageFullscreen}
+                    />
+                  </Suspense>
+                </Canvas>
+              ) : (
+                <div className="simulation-stage-placeholder" aria-hidden="true" />
+              )}
+              {!isStageExpanded && !isStageFullscreen ? (
+                <button
+                  className="simulation-click-layer"
+                  type="button"
+                  aria-label="Expand 3D simulation"
+                  onPointerDown={(event) => {
+                    event.stopPropagation();
+                    setIsStageExpanded(true);
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setIsStageExpanded(true);
+                  }}
+                />
+              ) : null}
               <div className="simulation-stage-hud">
                 <span>Live route model</span>
                 <strong>{selected.name}</strong>
@@ -616,6 +741,20 @@ export default function Page() {
                 >
                   {isStageFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
+                {isStageExpanded && !isStageFullscreen ? (
+                  <button
+                    className="stage-close-button"
+                    type="button"
+                    aria-label="Close expanded simulation"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setIsStageExpanded(false);
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                ) : null}
               </div>
                 <div className="simulation-stage-controls" onPointerDown={(event) => event.stopPropagation()}>
                   <Metric label="Flood rise" value={`${Math.round(motion.flood * 100)}%`} />
@@ -634,6 +773,14 @@ export default function Page() {
                 <Metric label="Flood rise" value={`${Math.round(motion.flood * 100)}%`} />
                 <Metric label="Route confidence" value={`${Math.round(motion.route * 88)}%`} />
                 <Metric label="Escape playback" value={`${Math.round(motion.sim * 100)}%`} />
+            </div>
+            <div className="scenario-levers" aria-label="Scenario variables">
+              {scenarioLevers.map((lever) => (
+                <div className={`scenario-lever is-${lever.tone}`} key={lever.label}>
+                  <span>{lever.label}</span>
+                  <strong>{lever.value}</strong>
+                </div>
+              ))}
             </div>
             <p>
               Drag the city stage to inspect the route. Press play to raise the flood and move Maya toward high ground.
@@ -660,12 +807,45 @@ export default function Page() {
               <Navigation size={18} />
               Helpful actions
             </div>
-            {selected.actionSteps.map((step, index) => (
-              <div className="action-row" key={step}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <strong>{step}</strong>
-              </div>
-            ))}
+            <div className="action-mode-tabs" role="tablist" aria-label="Command panel mode">
+              {commandModes.map((mode) => (
+                <button
+                  key={mode.id}
+                  type="button"
+                  className={commandMode === mode.id ? "is-active" : ""}
+                  aria-pressed={commandMode === mode.id}
+                  onClick={() => setCommandMode(mode.id)}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+            {commandMode === "actions" ? (
+              selected.actionSteps.map((step, index) => (
+                <div className="action-row" key={step}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <strong>{step}</strong>
+                </div>
+              ))
+            ) : null}
+            {commandMode === "shelters" ? (
+              selectedFacilities.map((facility) => (
+                <div className="facility-row" key={facility.id}>
+                  <span>{facility.status}</span>
+                  <strong>{facility.name}</strong>
+                  <small>{facility.capacity}</small>
+                </div>
+              ))
+            ) : null}
+            {commandMode === "infra" ? (
+              infrastructure.slice(0, 3).map((asset) => (
+                <div className="facility-row is-infra" key={asset.id}>
+                  <span>{asset.status}</span>
+                  <strong>{asset.name}</strong>
+                  <small>{asset.dependencyNotes}</small>
+                </div>
+              ))
+            ) : null}
           </FMotion.aside>
         </FMotion.div>
       </section>
@@ -719,34 +899,58 @@ type CityBuildingSpec = {
   color: string;
   roofColor?: string;
   trimColor?: string;
+  windowColor?: string;
+  rotation?: number;
+  facadeDepth?: number;
+  landmark?: boolean;
 };
 
 const cityBlocks: CityBuildingSpec[] = [];
-const cityPalette = ["#67a2c5", "#70afd2", "#81bad6", "#8fc3dc", "#98d6ef", "#6aadc8", "#70bbd9", "#95d7f2"];
+const cityPalette = [
+  "#8bb6c9",
+  "#9fb9c9",
+  "#b7c8d6",
+  "#8fa9be",
+  "#c4d4df",
+  "#759bb5",
+  "#a5c8dc",
+  "#d6e4ec",
+  "#6f8fa7",
+];
 
 function generateCityBlocks() {
-  for (let x = -3.4; x <= 3.25; x += 0.42) {
-    for (let z = -1.42; z <= 1.7; z += 0.34) {
-      const isStreetX = Math.round(Math.abs((x + 0.02) * 10)) % 8 === 0;
-      const isStreetZ = Math.round(Math.abs((z - 0.02) * 10)) % 6 === 0;
+  for (let x = -4.05; x <= 4.05; x += 0.5) {
+    for (let z = -2.06; z <= 2.14; z += 0.42) {
+      const isStreetX = Math.round(Math.abs((x + 0.02) * 10)) % 7 === 0;
+      const isStreetZ = Math.round(Math.abs((z - 0.02) * 10)) % 5 === 0;
       if (isStreetX || isStreetZ) continue;
 
       const densitySeed = (Math.sin(x * 16) + Math.cos(z * 10) + 1.8) * 0.18;
-      if (densitySeed > 0.88) continue;
+      if (densitySeed > 0.92) continue;
 
       const jitterX = Math.sin(x * 5.4 + z * 3.8) * 0.06;
       const jitterZ = Math.cos(x * 4.2 + z * 6.7) * 0.06;
-      const height = THREE.MathUtils.lerp(1.1, 4.4, (Math.sin(x * 3.2 + z * 5.5) + 1) / 2);
+      const downtownBias = THREE.MathUtils.clamp(1 - Math.hypot(x * 0.22, z * 0.42), 0, 1);
+      const height = THREE.MathUtils.lerp(
+        0.78,
+        5.25,
+        THREE.MathUtils.clamp((Math.sin(x * 3.2 + z * 5.5) + 1) / 2 * 0.62 + downtownBias * 0.54, 0, 1),
+      );
       const paletteIndex = Math.floor(Math.abs(Math.sin(x * 2.1 + z * 3.1)) * (cityPalette.length - 1));
+      const landmark = downtownBias > 0.72 && Math.abs(Math.sin(x * 2.4 + z * 2.8)) > 0.84;
       cityBlocks.push({
         x: x + jitterX,
         z: z + jitterZ,
-        w: 0.25 + (Math.sin(x * 8) + 1) * 0.095,
-        d: 0.2 + (Math.cos(z * 7) + 1) * 0.09,
-        h: THREE.MathUtils.clamp(height, 1, 4.8),
+        w: 0.22 + (Math.sin(x * 8) + 1) * 0.105,
+        d: 0.19 + (Math.cos(z * 7) + 1) * 0.1,
+        h: THREE.MathUtils.clamp(height + (landmark ? 1.1 : 0), 0.72, 6.2),
         color: cityPalette[paletteIndex],
-        roofColor: "#273c57",
-        trimColor: densitySeed > 0.4 ? "#8ae1ff" : "#caefff",
+        roofColor: landmark ? "#172339" : "#23384f",
+        trimColor: densitySeed > 0.4 ? "#8ae1ff" : "#dff7ff",
+        windowColor: densitySeed > 0.48 ? "#ffe2f1" : "#d9f7ff",
+        rotation: Math.sin(x * 1.8 + z) * 0.045,
+        facadeDepth: 0.008 + urbanRandom(x + z) * 0.012,
+        landmark,
       });
     }
   }
@@ -765,11 +969,17 @@ function UrbanBuilding({
   index: number;
   spec: CityBuildingSpec;
 }) {
-  const floors = Math.max(3, Math.round(spec.h * 3.5));
+  const floors = Math.max(3, Math.min(8, Math.round(spec.h * 2.05)));
   const roofHeight = Math.max(0.10, spec.h * 0.12);
+  const rows = Array.from({ length: floors });
+  const sideRows = rows.filter((_, row) => row % 2 === 0);
 
   return (
-    <group position={[spec.x, -0.5 + spec.h / 2, spec.z]} key={`${spec.x}-${spec.z}-${spec.h}-${index}`}>
+    <group
+      position={[spec.x, -0.5 + spec.h / 2, spec.z]}
+      rotation={[0, spec.rotation ?? 0, 0]}
+      key={`${spec.x}-${spec.z}-${spec.h}-${index}`}
+    >
       <mesh castShadow receiveShadow>
         <boxGeometry args={[spec.w, spec.h, spec.d]} />
         <meshPhysicalMaterial
@@ -780,6 +990,18 @@ function UrbanBuilding({
           clearcoatRoughness={0.66}
         />
       </mesh>
+      <mesh position={[0, -spec.h / 2 + 0.05, spec.d / 2 + 0.01]}>
+        <boxGeometry args={[spec.w * 1.08, 0.12, 0.024]} />
+        <meshStandardMaterial color="#172339" roughness={0.46} />
+      </mesh>
+      <mesh position={[0, -spec.h / 2 + 0.18, spec.d / 2 + 0.017]}>
+        <boxGeometry args={[spec.w * 0.72, 0.055, 0.018]} />
+        <meshStandardMaterial
+          color={spec.landmark ? "#ff4f87" : "#8be9ff"}
+          emissive={spec.landmark ? "#ff4f87" : "#8be9ff"}
+          emissiveIntensity={0.48}
+        />
+      </mesh>
       <mesh position={[0, spec.h / 2 + roofHeight / 2 - 0.01, 0]}>
         <boxGeometry args={[spec.w * 0.9, roofHeight, spec.d * 0.9]} />
         <meshStandardMaterial color={spec.roofColor ?? "#233f59"} roughness={0.58} />
@@ -788,13 +1010,19 @@ function UrbanBuilding({
         <boxGeometry args={[spec.w * 0.16, Math.min(0.3, spec.h * 0.13), spec.d * 0.16]} />
         <meshStandardMaterial color={spec.trimColor ?? "#dff4ff"} roughness={0.34} emissive={spec.trimColor ?? "#8be9ff"} emissiveIntensity={0.2} />
       </mesh>
-      {Array.from({ length: floors }).map((_, row) => {
+      {spec.landmark ? (
+        <mesh position={[0, spec.h / 2 + roofHeight + 0.24, 0]}>
+          <cylinderGeometry args={[0.018, 0.018, 0.5, 12]} />
+          <meshStandardMaterial color="#eaf7ff" emissive="#8be9ff" emissiveIntensity={0.78} />
+        </mesh>
+      ) : null}
+      {rows.map((_, row) => {
         const y = -spec.h / 2 + 0.2 + row * (spec.h / (floors + 0.1));
-        const stripeColor = row % 2 === 0 ? "#f8fdff" : "#d7ecfb";
+        const stripeColor = row % 2 === 0 ? (spec.windowColor ?? "#f8fdff") : "#d7ecfb";
         const glow = row % 3 === 0 ? "#8be9ff" : "#ffd7ef";
         return (
           <mesh key={`window-${row}`} position={[0, y, spec.d / 2 + 0.008]}>
-            <boxGeometry args={[spec.w * 0.64, Math.max(0.03, spec.h / (floors * 2.6)), 0.01]} />
+            <boxGeometry args={[spec.w * 0.72, Math.max(0.03, spec.h / (floors * 3.2)), spec.facadeDepth ?? 0.01]} />
             <meshStandardMaterial
               color={stripeColor}
               emissive={glow}
@@ -802,6 +1030,15 @@ function UrbanBuilding({
               opacity={0.86}
               transparent
             />
+          </mesh>
+        );
+      })}
+      {sideRows.map((_, row) => {
+        const y = -spec.h / 2 + 0.26 + row * (spec.h / (floors + 0.1));
+        return (
+          <mesh key={`side-window-${row}`} position={[spec.w / 2 + 0.006, y, 0]} rotation={[0, Math.PI / 2, 0]}>
+            <boxGeometry args={[spec.d * 0.62, Math.max(0.026, spec.h / (floors * 3.5)), 0.01]} />
+            <meshStandardMaterial color="#d9f7ff" emissive="#8be9ff" emissiveIntensity={0.12} transparent opacity={0.72} />
           </mesh>
         );
       })}
@@ -853,15 +1090,91 @@ function sampleRoute(points: Array<[number, number]>, t: number): [number, numbe
   ];
 }
 
-function DetailedCityModel({ compact = false }: { compact?: boolean }) {
-  const visibleBlocks = compact ? cityBlocks.slice(0, 14) : cityBlocks;
+function CityGroundInfrastructure({ compact = false }: { compact?: boolean }) {
+  const roadXs = compact ? [-2.55, -1.65, -0.75, 0.18, 1.08, 2.02, 2.85] : [-3.72, -2.88, -2.04, -1.18, -0.34, 0.52, 1.38, 2.24, 3.08, 3.86];
+  const roadZs = compact ? [-1.36, -0.64, 0.08, 0.82, 1.48] : [-1.92, -1.28, -0.62, 0.02, 0.68, 1.34, 2.02];
+  const lampPositions = compact
+    ? [
+        [-2.65, -1.1],
+        [-1.25, 0.6],
+        [0.4, -0.82],
+        [1.86, 1.28],
+        [2.62, -0.28],
+      ]
+    : [
+        [-3.4, -1.68],
+        [-2.18, -0.42],
+        [-1.18, 1.18],
+        [-0.22, -1.38],
+        [0.86, 0.46],
+        [1.76, -1.1],
+        [2.76, 1.42],
+        [3.58, -0.18],
+      ];
 
   return (
     <group>
+      <mesh receiveShadow position={[0, -0.516, 0.22]}>
+        <boxGeometry args={[compact ? 6.55 : 8.55, 0.028, compact ? 4.22 : 5.1]} />
+        <meshStandardMaterial color="#dcebf5" roughness={0.52} metalness={0.02} />
+      </mesh>
+      <mesh position={[0, -0.49, compact ? 1.98 : 2.42]}>
+        <boxGeometry args={[compact ? 6.7 : 8.7, 0.035, 0.22]} />
+        <meshStandardMaterial color="#21344c" roughness={0.5} emissive="#0f2238" emissiveIntensity={0.08} />
+      </mesh>
+      {[0.94, 1.56, 2.18].map((x, index) => (
+        <mesh key={`pier-${x}`} position={[x - 3.2, -0.468, compact ? 2.18 : 2.58]} rotation={[0, index % 2 ? -0.08 : 0.05, 0]}>
+          <boxGeometry args={[0.44, 0.05, compact ? 0.88 : 1.02]} />
+          <meshStandardMaterial color="#8ea6b5" roughness={0.64} metalness={0.02} />
+        </mesh>
+      ))}
+      {roadXs.map((x, index) => (
+        <mesh key={`urban-road-x-${x}`} position={[x, -0.468, 0.04]} rotation={[0, index % 2 ? 0.02 : -0.012, 0]}>
+          <boxGeometry args={[0.1, 0.038, compact ? 3.85 : 4.75]} />
+          <meshStandardMaterial color="#21324a" roughness={0.62} emissive="#101b2d" emissiveIntensity={0.06} />
+        </mesh>
+      ))}
+      {roadZs.map((z, index) => (
+        <mesh key={`urban-road-z-${z}`} position={[0, -0.456, z]} rotation={[0, index % 2 ? 0.012 : -0.01, 0]}>
+          <boxGeometry args={[compact ? 6.08 : 7.85, 0.034, 0.096]} />
+          <meshStandardMaterial color="#243550" roughness={0.62} emissive="#111d31" emissiveIntensity={0.08} />
+        </mesh>
+      ))}
+      {roadZs.slice(0, compact ? 4 : 6).map((z, index) => (
+        <mesh key={`crosswalk-${z}`} position={[-2.98 + index * 1.04, -0.432, z]} rotation={[0, 0.02, 0]}>
+          <boxGeometry args={[0.34, 0.018, 0.028]} />
+          <meshStandardMaterial color="#f8fdff" emissive="#d7f7ff" emissiveIntensity={0.12} />
+        </mesh>
+      ))}
+      {lampPositions.map(([x, z], index) => (
+        <group key={`street-lamp-${index}`} position={[x, -0.22, z]}>
+          <mesh>
+            <cylinderGeometry args={[0.012, 0.014, 0.52, 8]} />
+            <meshStandardMaterial color="#15243a" roughness={0.4} metalness={0.28} />
+          </mesh>
+          <mesh position={[0, 0.28, 0]}>
+            <sphereGeometry args={[0.055, 12, 10]} />
+            <meshStandardMaterial color="#fff5d6" emissive="#ffd7ef" emissiveIntensity={0.85} />
+          </mesh>
+          <pointLight position={[0, 0.32, 0]} intensity={compact ? 1.2 : 1.6} distance={1.1} color={index % 2 ? "#8be9ff" : "#ffd7ef"} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function DetailedCityModel({ compact = false }: { compact?: boolean }) {
+  const visibleBlocks = compact
+    ? cityBlocks.filter((block) => Math.abs(block.x) < 3.3 && Math.abs(block.z) < 1.8).slice(0, 42)
+    : cityBlocks.filter((block) => Math.abs(block.x) < 3.7 && Math.abs(block.z) < 2.05).slice(0, 84);
+
+  return (
+    <group>
+      <CityGroundInfrastructure compact={compact} />
       {visibleBlocks.map((block, index) => (
         <UrbanBuilding key={`${block.x}-${block.z}`} index={index} spec={block} />
       ))}
-      {[-3, -2.6, -1.9, -1.2, -0.7, 0, 0.5, 1.05, 1.6, 2.2, 2.8].map((x, index) => (
+      {[-3.2, -2.45, -1.66, -0.8, 0, 0.72, 1.48, 2.28, 3.08].map((x, index) => (
         <mesh key={`street-car-${x}-${index}`} position={[x, -0.415, 0.66 + (index % 2) * 0.28]} castShadow>
           <boxGeometry args={[0.2, 0.08, 0.36]} />
           <meshStandardMaterial
@@ -890,7 +1203,29 @@ function CityModelLayer({ compact = false, source }: { compact?: boolean; source
     return <ExternalCityModel compact={compact} />;
   }
 
+  if (source === "sample") {
+    return <LocalCityModel compact={compact} />;
+  }
+
   return <DetailedCityModel compact={compact} />;
+}
+
+function LocalCityModel({ compact = false }: { compact?: boolean }) {
+  const { scene } = useGLTF(LOCAL_CITY_MODEL_URL);
+  const cityScale = compact ? 0.0125 : 0.0118;
+
+  return (
+    <group>
+      <CityGroundInfrastructure compact={compact} />
+      <group
+        position={compact ? [-1.1, -0.55, -0.78] : [-1.32, -0.55, -0.96]}
+        rotation={[0, compact ? -0.44 : -0.5, 0]}
+        scale={cityScale}
+      >
+        <Clone object={scene} castShadow receiveShadow />
+      </group>
+    </group>
+  );
 }
 
 function ExternalCityModel({ compact = false }: { compact?: boolean }) {
@@ -977,6 +1312,7 @@ function FloodWaterSurface({
   compact?: boolean;
 }) {
   const materialRef = useRef<THREE.MeshPhysicalMaterial>(null);
+  const rippleRadii = useMemo(() => (compact ? [0.82, 1.34, 1.92, 2.48, 3.04] : [0.9, 1.46, 2.02, 2.58, 3.14, 3.62]), [compact]);
   const normalTexture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 256;
@@ -1020,24 +1356,42 @@ function FloodWaterSurface({
   if (!normalTexture) return null;
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, Math.PI / 4]} position={[0, -0.14 + level * 0.6, 0]}>
-      <circleGeometry args={[compact ? 3.45 : 4.0, 132]} />
-      <meshPhysicalMaterial
-        ref={materialRef}
-        color="#0a9eff"
-        side={THREE.DoubleSide}
-        roughness={0.12}
-        metalness={0.04}
-        clearcoat={1}
-        clearcoatRoughness={0.12}
-        normalMap={normalTexture}
-        normalScale={new THREE.Vector2(0.34, 0.34)}
-        transparent
-        transmission={0.78}
-        thickness={1.1}
-        attenuationDistance={2.4}
-      />
-    </mesh>
+    <group position={[0, -0.14 + level * 0.6, 0]}>
+      <mesh rotation={[-Math.PI / 2, 0, Math.PI / 4]}>
+        <circleGeometry args={[compact ? 3.45 : 4.0, 132]} />
+        <meshPhysicalMaterial
+          ref={materialRef}
+          color={WATER_COLOR}
+          side={THREE.DoubleSide}
+          roughness={0.12}
+          metalness={0.04}
+          clearcoat={1}
+          clearcoatRoughness={0.12}
+          normalMap={normalTexture}
+          normalScale={new THREE.Vector2(0.34, 0.34)}
+          transparent
+          transmission={0.78}
+          thickness={1.1}
+          attenuationDistance={2.4}
+        />
+      </mesh>
+      {rippleRadii.map((radius, index) => (
+        <mesh
+          key={`water-ripple-${radius}`}
+          rotation={[-Math.PI / 2, 0, index * 0.36]}
+          position={[Math.sin(index * 1.9) * 0.18, 0.018 + index * 0.002, Math.cos(index * 1.4) * 0.12]}
+        >
+          <torusGeometry args={[radius, 0.006 + level * 0.006, 8, 96]} />
+          <meshBasicMaterial color="#e9fbff" transparent opacity={THREE.MathUtils.lerp(0.12, 0.36, level)} />
+        </mesh>
+      ))}
+      {[compact ? -2.7 : -3.26, 0, compact ? 2.7 : 3.26].map((x, index) => (
+        <mesh key={`foam-current-${index}`} position={[x, 0.024, compact ? 1.52 : 1.82]} rotation={[-Math.PI / 2, 0, index * 0.08]}>
+          <boxGeometry args={[compact ? 1.18 : 1.42, 0.026, 0.018]} />
+          <meshBasicMaterial color="#f8fdff" transparent opacity={THREE.MathUtils.lerp(0.16, 0.48, level)} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 
@@ -1202,6 +1556,19 @@ function SimulatorScene({
             <boxGeometry args={[0.12, 0.18, 0.08]} />
             <meshStandardMaterial color="#ff4f87" emissive="#ff4f87" emissiveIntensity={0.75} />
           </mesh>
+          <Text
+            position={[0.18, 0.24, 0.04]}
+            rotation={[-0.76, 0, 0]}
+            fontSize={0.12}
+            fontWeight={900}
+            color="#f8fdff"
+            outlineWidth={0.014}
+            outlineColor="#081426"
+            anchorX="center"
+            anchorY="middle"
+          >
+            FLOOD RISE
+          </Text>
         </group>
         {[-2.4, -1.2, 0, 1.2, 2.4].map((x, index) => (
           <mesh key={`flood-pillar-${x}`} position={[x, -0.1 + motion.flood * 0.34, 1.62 - (index % 2) * 0.16]}>
@@ -1423,6 +1790,19 @@ function CitylineObject({
             <boxGeometry args={[0.13, 0.2, 0.1]} />
             <meshStandardMaterial color="#ff4f87" emissive="#ff4f87" emissiveIntensity={0.7} />
           </mesh>
+          <Text
+            position={[0.18, 0.27, 0.05]}
+            rotation={[-0.68, 0, 0]}
+            fontSize={0.13}
+            fontWeight={900}
+            color="#f8fdff"
+            outlineWidth={0.016}
+            outlineColor="#071225"
+            anchorX="center"
+            anchorY="middle"
+          >
+            FLOOD RISE
+          </Text>
         </group>
       </group>
 

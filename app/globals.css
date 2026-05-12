@@ -284,6 +284,16 @@ button {
   animation-delay: -4.9s;
 }
 
+.stage-dismiss-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  border: 0;
+  padding: 0;
+  background: rgba(6, 13, 30, 0.42);
+  cursor: zoom-out;
+}
+
 @keyframes gradientDrift {
   from {
     transform: scale(1) rotate(0deg);
@@ -400,10 +410,16 @@ button {
 
   .simulator-status > div:hover,
   .simulation-stage:hover,
-  .action-row:hover {
+  .action-row:hover,
+  .facility-row:hover {
     border-color: rgba(110, 75, 255, 0.28);
     background: rgba(255, 255, 255, 0.34);
     transform: translateY(-3px);
+  }
+
+  .action-mode-tabs button:hover {
+    color: var(--violet);
+    transform: translateY(-1px);
   }
 
   .layer-card:hover svg {
@@ -439,6 +455,7 @@ button:focus-visible {
 .cityline-next[data-stage-expanded="true"] .control-stack,
 .cityline-next[data-stage-expanded="true"] .action-stack,
 .cityline-next[data-stage-expanded="true"] .simulator-status,
+.cityline-next[data-stage-expanded="true"] .scenario-levers,
 .cityline-next[data-stage-expanded="true"] .simulator-copy > p,
 .cityline-next[data-stage-expanded="true"] .simulator-copy > .play-button {
   opacity: 0;
@@ -867,7 +884,7 @@ h1 {
 
 .model-source-switch {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -877,7 +894,9 @@ h1 {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.24);
   color: var(--ink);
+  font-size: 0.74rem;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .model-source-switch button.is-active {
@@ -996,6 +1015,27 @@ h1 {
   cursor: grab;
 }
 
+.simulation-stage-placeholder {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, rgba(40, 217, 255, 0.28), transparent 34%),
+    linear-gradient(260deg, rgba(255, 79, 135, 0.16), transparent 42%),
+    url("/assets/heavy-rain-storm.jpg") center / cover;
+  filter: saturate(1.05) contrast(1.1);
+  opacity: 0.9;
+}
+
+.simulation-click-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
 .simulation-stage:active canvas {
   cursor: grabbing;
 }
@@ -1005,7 +1045,7 @@ h1 {
   top: 14px;
   left: 14px;
   right: 14px;
-  z-index: 1;
+  z-index: 4;
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -1014,7 +1054,8 @@ h1 {
 
 .simulation-stage-hud span,
 .simulation-stage-hud strong,
-.stage-fullscreen-button {
+.stage-fullscreen-button,
+.stage-close-button {
   border: 1px solid rgba(255, 255, 255, 0.56);
   border-radius: 999px;
   padding: 8px 10px;
@@ -1024,7 +1065,8 @@ h1 {
   box-shadow: 0 12px 34px rgba(96, 48, 138, 0.14);
 }
 
-.stage-fullscreen-button {
+.stage-fullscreen-button,
+.stage-close-button {
   width: 38px;
   height: 38px;
   padding: 0;
@@ -1039,10 +1081,15 @@ h1 {
     background 180ms ease;
 }
 
-.stage-fullscreen-button:hover {
+.stage-fullscreen-button:hover,
+.stage-close-button:hover {
   border-color: rgba(40, 217, 255, 0.7);
   background: rgba(232, 247, 255, 0.92);
   transform: translateY(-2px);
+}
+
+.stage-close-button {
+  color: var(--red);
 }
 
 .simulation-stage-hud span {
@@ -1061,7 +1108,7 @@ h1 {
   left: 14px;
   right: 14px;
   bottom: 14px;
-  z-index: 3;
+  z-index: 5;
   display: none;
   grid-template-columns: repeat(2, minmax(92px, 0.18fr)) minmax(180px, 0.34fr);
   gap: 10px;
@@ -1121,6 +1168,51 @@ h1 {
   gap: 10px;
 }
 
+.scenario-levers {
+  grid-column: 1 / 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scenario-lever {
+  min-height: 58px;
+  border: 1px solid rgba(38, 20, 73, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scenario-lever span,
+.scenario-lever strong {
+  display: block;
+}
+
+.scenario-lever span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.scenario-lever strong {
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+.scenario-lever.is-blue {
+  background: linear-gradient(180deg, rgba(40, 217, 255, 0.18), rgba(255, 255, 255, 0.18));
+}
+
+.scenario-lever.is-pink {
+  background: linear-gradient(180deg, rgba(255, 79, 135, 0.16), rgba(255, 255, 255, 0.18));
+}
+
+.scenario-lever.is-violet {
+  background: linear-gradient(180deg, rgba(110, 75, 255, 0.16), rgba(255, 255, 255, 0.18));
+}
+
 .simulator-status > div {
   min-height: 84px;
   border: 1px solid rgba(38, 20, 73, 0.12);
@@ -1171,6 +1263,84 @@ h1 {
     transform 180ms ease,
     border-color 180ms ease,
     background 180ms ease;
+}
+
+.action-mode-tabs {
+  min-height: 44px;
+  border: 1px solid rgba(38, 20, 73, 0.12);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.action-mode-tabs button {
+  border: 0;
+  border-radius: 6px;
+  color: rgba(38, 20, 73, 0.68);
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.action-mode-tabs button.is-active {
+  color: #f8fdff;
+  background: linear-gradient(135deg, var(--violet), var(--red), var(--cyan));
+  box-shadow: 0 12px 30px rgba(110, 75, 255, 0.16);
+}
+
+.facility-row {
+  min-height: 96px;
+  border: 1px solid rgba(40, 217, 255, 0.26);
+  border-radius: 8px;
+  padding: 13px;
+  background:
+    linear-gradient(135deg, rgba(40, 217, 255, 0.14), rgba(255, 255, 255, 0.17)),
+    rgba(255, 255, 255, 0.18);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
+}
+
+.facility-row.is-infra {
+  border-color: rgba(255, 79, 135, 0.24);
+  background:
+    linear-gradient(135deg, rgba(255, 79, 135, 0.12), rgba(110, 75, 255, 0.1)),
+    rgba(255, 255, 255, 0.18);
+}
+
+.facility-row span,
+.facility-row small {
+  display: block;
+  color: var(--muted);
+}
+
+.facility-row span {
+  color: var(--violet);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.facility-row strong {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.18;
+}
+
+.facility-row small {
+  margin-top: 6px;
+  font-size: 0.74rem;
+  line-height: 1.32;
 }
 
 .action-row span {
@@ -1247,6 +1417,7 @@ h1 {
   }
 
   .simulator-status,
+  .scenario-levers,
   .simulator-copy p,
   .simulator-copy .play-button {
     grid-column: 1 / -1;
@@ -1369,6 +1540,16 @@ h1 {
   .simulator-status {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
+  }
+
+  .scenario-levers {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .scenario-lever {
+    min-height: 50px;
+    padding: 9px 10px;
   }
 
   .simulator-status > div {
