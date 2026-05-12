@@ -18,12 +18,17 @@ import {
   ArrowUpRight,
   Building2,
   Crosshair,
+  Gauge,
+  Hospital,
   Maximize2,
   Minimize2,
   Navigation,
   Pause,
   Play,
   RadioTower,
+  RotateCcw,
+  Route,
+  Waves,
   X,
 } from "lucide-react";
 import { motion as FMotion } from "framer-motion";
@@ -55,6 +60,7 @@ type RouteState = {
 };
 
 type CommandMode = "actions" | "shelters" | "infra";
+type StageView = "overview" | "route" | "shelter";
 
 const CITY_MODEL_URL = process.env.NEXT_PUBLIC_CITYLINE_CITY_MODEL_URL?.trim() ?? "";
 const LOCAL_CITY_MODEL_URL = "/assets/littlest-tokyo.glb";
@@ -102,6 +108,12 @@ const commandModes: Array<{ id: CommandMode; label: string }> = [
   { id: "actions", label: "Actions" },
   { id: "shelters", label: "Shelters" },
   { id: "infra", label: "Infra" },
+];
+
+const stageViews: Array<{ id: StageView; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "route", label: "Route" },
+  { id: "shelter", label: "Shelter" },
 ];
 
 const sceneReveal: Record<string, any> = {
@@ -155,6 +167,8 @@ export default function Page() {
   const [cityModelSource, setCityModelSource] = useState<CityModelSource>(CITY_MODEL_SOURCE_PRESET);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(neighborhoods[0].id);
   const [commandMode, setCommandMode] = useState<CommandMode>("actions");
+  const [stageView, setStageView] = useState<StageView>("overview");
+  const [stageResetNonce, setStageResetNonce] = useState(0);
   const playbackRef = useRef<{ startedAt: number; startFlood: number; startSim: number } | null>(null);
   const simulationStageRef = useRef<HTMLDivElement | null>(null);
 
@@ -423,6 +437,13 @@ export default function Page() {
     setIsStageExpanded(true);
   };
 
+  const handleStageReset = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setStageView("overview");
+    setStageResetNonce((current) => current + 1);
+    setMotion((current) => ({ ...current, mouseX: 0, mouseY: 0 }));
+  };
+
   const handleStageFullscreen = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     const stage = simulationStageRef.current;
@@ -451,13 +472,17 @@ export default function Page() {
       await fullscreenStage.webkitRequestFullscreen?.();
     }
   };
-  const photoTransform = `translate3d(${motion.mouseX * -26 - motion.scroll * 118}px, ${
-    motion.mouseY * -14 - motion.scroll * 28
-  }px, 0) scale(${1.1 + motion.scroll * 0.16})`;
+  const sceneOpacity = gsap.utils.clamp(0, 1, (motion.scroll - 0.16) / 0.2);
+  const photoOpacity = 1 - gsap.utils.clamp(0, 0.92, (motion.scroll - 0.58) / 0.22);
+  const photoTransform = `translate3d(${motion.mouseX * -12 - motion.scroll * 42}px, ${
+    motion.mouseY * -8 - motion.scroll * 16
+  }px, 0) scale(${1.03 + motion.scroll * 0.08})`;
   const sceneStyle = {
     "--mx": motion.mouseX.toFixed(4),
     "--my": motion.mouseY.toFixed(4),
     "--scroll": motion.scroll.toFixed(4),
+    "--photo-opacity": photoOpacity.toFixed(3),
+    "--scene-opacity": sceneOpacity.toFixed(3),
     "--parallax-x": `${motion.mouseX * 18}px`,
     "--parallax-y": `${motion.mouseY * 12}px`,
     "--reverse-parallax-x": `${motion.mouseX * -24}px`,
@@ -500,19 +525,7 @@ export default function Page() {
         <span />
       </div>
       {isStageExpanded && !isStageFullscreen ? (
-        <button
-          className="stage-dismiss-layer"
-          type="button"
-          aria-label="Close expanded simulation"
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            setIsStageExpanded(false);
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-            setIsStageExpanded(false);
-          }}
-        />
+        <div className="stage-dismiss-layer" aria-hidden="true" />
       ) : null}
       <div className="canvas-layer">
         <Canvas
@@ -562,23 +575,18 @@ export default function Page() {
         viewport={{ amount: 0.3, once: true }}
         variants={sceneReveal}
       >
-        <FMotion.div className="hero-copy glass-copy">
-          <div className="hero-card-index" aria-hidden="true">
-            <span>Card</span>
-            <strong>03</strong>
-          </div>
+        <FMotion.div className="hero-copy photo-hero-copy">
           <div className="poster-meta">
             <span>NYC FLOOD OPS</span>
-            <span>Scroll / route / act</span>
+            <span>Photo route lab</span>
           </div>
           <p className="kicker">Flash flood warning / South Street Seaport</p>
-          <h1 className="editorial-title" aria-label="CityLine Flood Run">
-            <span>City</span>
-            <span>Line</span>
+          <h1 className="editorial-title" aria-label="CityLine flood route command">
+            <span>City warnings</span>
+            <span>that move with the water.</span>
           </h1>
           <p className="hero-body">
-            [ The river pressure is visible before the street fails. CityLine turns that tension into a route,
-            a subject, and a decision window. ]
+            CityLine turns one block, live hazard layers, and shelter routes into an annotated civic command view.
           </p>
           <div className="hero-actions">
             <FMotion.a href="#command" onClick={handleSectionLink("command")} whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.985 }}>
@@ -587,6 +595,38 @@ export default function Page() {
             <span className="city-source-pill">{cityModelCredit}</span>
           </div>
         </FMotion.div>
+        <div className="photo-annotation-field" aria-label="CityLine live hero annotations">
+          <div className="photo-annotation photo-annotation--water">
+            <Waves size={14} />
+            <span>Street depth</span>
+            <strong>{selected.floodDepth}</strong>
+          </div>
+          <div className="photo-annotation photo-annotation--risk">
+            <Gauge size={14} />
+            <span>Risk index</span>
+            <strong>{selected.riskScore}/100</strong>
+          </div>
+          <div className="photo-annotation photo-annotation--route">
+            <Navigation size={14} />
+            <span>Shelter route</span>
+            <strong>{selectedRoute.endLabel}</strong>
+          </div>
+          <div className="photo-annotation photo-annotation--network">
+            <Hospital size={14} />
+            <span>Emergency nodes</span>
+            <strong>{selectedFacilities.length} online</strong>
+          </div>
+        </div>
+        <aside className="photo-route-card" aria-label="Recommended route snapshot">
+          <div className="photo-route-card__media" aria-hidden="true" />
+          <small>{selected.borough} / Flood scenario</small>
+          <strong>{selectedRoute.destinationName}</strong>
+          <p>{selectedRoute.startLabel} → {selectedRoute.endLabel}</p>
+          <a href="#command" onClick={handleSectionLink("command")}>
+            Inspect route
+            <ArrowUpRight size={13} />
+          </a>
+        </aside>
       </FMotion.section>
 
       <section id="story" className="story-section overlay-section" aria-label="Scroll story">
@@ -710,11 +750,13 @@ export default function Page() {
                 >
                   <Suspense fallback={null}>
                     <SimulatorScene
+                      key={`${stageView}-${stageResetNonce}-${cityModelSource}`}
                       motion={motion}
                       selectedNeighborhoodId={selectedNeighborhood}
                       routeState={selectedRoute}
                       cityModelSource={cityModelSource}
                       isExpanded={isStageExpanded || isStageFullscreen}
+                      stageView={stageView}
                     />
                   </Suspense>
                 </Canvas>
@@ -748,6 +790,15 @@ export default function Page() {
                 >
                   {isStageFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                 </button>
+                <button
+                  className="stage-reset-button"
+                  type="button"
+                  aria-label="Reset simulation view"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={handleStageReset}
+                >
+                  <RotateCcw size={16} />
+                </button>
                 {isStageExpanded && !isStageFullscreen ? (
                   <button
                     className="stage-close-button"
@@ -774,7 +825,39 @@ export default function Page() {
                   >
                     {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                   </button>
+                  <div className="simulation-view-controls" role="tablist" aria-label="Simulation view">
+                    {stageViews.map((view) => (
+                      <button
+                        key={view.id}
+                        type="button"
+                        role="tab"
+                        aria-pressed={stageView === view.id}
+                        aria-selected={stageView === view.id}
+                        data-stage-view={view.id}
+                        className={stageView === view.id ? "is-active" : ""}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setStageView(view.id);
+                          setStageResetNonce((current) => current + 1);
+                        }}
+                      >
+                        {view.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                {(isStageExpanded || isStageFullscreen) ? (
+                  <div className="simulation-explore-panel" onPointerDown={(event) => event.stopPropagation()}>
+                    <Route size={17} />
+                    <div>
+                      <span>{selectedRoute.destinationName}</span>
+                      <strong>
+                        {selectedRoute.startLabel} → {selectedRoute.endLabel}
+                      </strong>
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div className="simulator-status">
                 <Metric label="Flood rise" value={`${Math.round(motion.flood * 100)}%`} />
@@ -1437,12 +1520,14 @@ function SimulatorScene({
   motion,
   selectedNeighborhoodId,
   isExpanded,
+  stageView,
   routeState,
   cityModelSource,
 }: {
   motion: MotionState;
   selectedNeighborhoodId: string;
   isExpanded: boolean;
+  stageView: StageView;
   routeState: RouteState;
   cityModelSource: CityModelSource;
 }) {
@@ -1459,6 +1544,9 @@ function SimulatorScene({
   const [routeEndX, routeEndZ] = sceneRouteState.end;
   const routeAngle = Math.atan2(routeEndZ - routeStartZ, routeEndX - routeStartX || 0.0001);
   const routeScale = Math.max(0.2, 0.18 + motion.route * 0.94);
+  const stageYaw = stageView === "route" ? -0.08 : stageView === "shelter" ? -0.78 : -0.34;
+  const stagePitch = stageView === "route" ? -0.03 : stageView === "shelter" ? -0.1 : -0.05;
+  const modelScale = isExpanded ? 1.18 : 1.08;
 
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
@@ -1466,10 +1554,10 @@ function SimulatorScene({
     if (modelRef.current) {
       modelRef.current.rotation.y = THREE.MathUtils.lerp(
         modelRef.current.rotation.y,
-        -0.36 + motion.mouseX * 0.18,
+        stageYaw + motion.mouseX * 0.12,
         0.04,
       );
-      modelRef.current.rotation.x = THREE.MathUtils.lerp(modelRef.current.rotation.x, -0.05 + motion.mouseY * 0.08, 0.04);
+      modelRef.current.rotation.x = THREE.MathUtils.lerp(modelRef.current.rotation.x, stagePitch + motion.mouseY * 0.06, 0.04);
     }
 
     if (floodWallRef.current) {
@@ -1505,16 +1593,18 @@ function SimulatorScene({
     <>
       <PerspectiveCamera
         makeDefault
-        position={isExpanded ? [4.8, 4.65, 6.85] : [3.7, 3.35, 5.35]}
-        fov={isExpanded ? 48 : 38}
+        position={isExpanded ? [4.45, 4.02, 6.28] : [3.7, 3.35, 5.35]}
+        fov={isExpanded ? 44 : 38}
       />
-      <color attach="background" args={["#070708"]} />
-      <fog attach="fog" args={["#111114", 7, 15]} />
-      <ambientLight intensity={0.9} color="#f6f7fb" />
-      <directionalLight position={[-3.8, 7, 4.2]} intensity={4.1} color="#f8fbff" castShadow />
-      <pointLight position={[-2.8, 1.4, 1.8]} intensity={18} color="#ff4f87" />
-      <pointLight position={[3.2, 1.6, -1.2]} intensity={16} color="#59d7ff" />
-      <group ref={modelRef} position={[0, 0.15, 0]} scale={1.08}>
+      <color attach="background" args={[isExpanded ? "#172435" : "#070708"]} />
+      <fog attach="fog" args={[isExpanded ? "#37506a" : "#111114", isExpanded ? 12 : 7, isExpanded ? 28 : 15]} />
+      <hemisphereLight intensity={isExpanded ? 1.45 : 0.34} color="#f8fbff" groundColor="#37506a" />
+      <ambientLight intensity={isExpanded ? 1.45 : 0.9} color="#f6f7fb" />
+      <directionalLight position={[-3.8, 7, 4.2]} intensity={isExpanded ? 5.8 : 4.1} color="#f8fbff" castShadow />
+      <directionalLight position={[4.8, 4.8, -4.2]} intensity={isExpanded ? 2.6 : 0.8} color="#cbefff" />
+      <pointLight position={[-2.8, 1.4, 1.8]} intensity={isExpanded ? 22 : 18} color="#ff4f87" />
+      <pointLight position={[3.2, 1.6, -1.2]} intensity={isExpanded ? 24 : 16} color="#59d7ff" />
+      <group ref={modelRef} position={[0, isExpanded ? 0.02 : 0.15, isExpanded ? 0.08 : 0]} scale={modelScale}>
         <mesh receiveShadow position={[0, -0.56, 0]} rotation={[0, 0.02, 0]}>
           <boxGeometry args={[6.1, 0.2, 4.1]} />
           <meshPhysicalMaterial color="#d9ecff" roughness={0.36} metalness={0.04} clearcoat={0.28} />
@@ -1633,8 +1723,20 @@ function SimulatorScene({
           <meshStandardMaterial color="#44d87f" emissive="#44d87f" emissiveIntensity={0.9} />
         </mesh>
       </group>
-      <ContactShadows position={[0, -0.6, 0]} opacity={0.35} scale={8} blur={2.6} far={4.5} color="#6b4264" />
-      <OrbitControls enablePan={false} enableZoom={false} enableDamping dampingFactor={0.08} rotateSpeed={0.45} />
+      <ContactShadows position={[0, -0.6, 0]} opacity={isExpanded ? 0.24 : 0.35} scale={8} blur={2.6} far={4.5} color="#6b4264" />
+      <OrbitControls
+        enablePan={isExpanded}
+        enableZoom={isExpanded}
+        enableDamping
+        dampingFactor={0.08}
+        rotateSpeed={isExpanded ? 0.55 : 0.45}
+        zoomSpeed={0.65}
+        panSpeed={0.45}
+        minDistance={3.4}
+        maxDistance={8.4}
+        minPolarAngle={0.3}
+        maxPolarAngle={1.36}
+      />
     </>
   );
 }

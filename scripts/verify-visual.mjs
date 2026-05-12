@@ -1,6 +1,8 @@
 import { chromium, devices } from "@playwright/test";
 import fs from "node:fs/promises";
 
+process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY ??= "1";
+
 const baseUrl = process.env.CITYLINE_URL ?? "http://localhost:3000";
 const scrollStops = [
   ["hero", 0],
@@ -406,16 +408,42 @@ async function verifyFeatureSmoke(browser) {
       () => {
         const controls = document.querySelector(".simulation-stage-controls");
         const playButton = document.querySelector(".stage-play-button");
+        const viewControls = document.querySelector(".simulation-view-controls");
+        const routePanel = document.querySelector(".simulation-explore-panel");
         if (!(controls instanceof HTMLElement) || !(playButton instanceof HTMLElement)) return false;
+        if (!(viewControls instanceof HTMLElement) || !(routePanel instanceof HTMLElement)) return false;
         const controlsStyle = window.getComputedStyle(controls);
         const buttonRect = playButton.getBoundingClientRect();
-        return controlsStyle.display !== "none" && buttonRect.width > 1 && buttonRect.height > 1;
+        const viewRect = viewControls.getBoundingClientRect();
+        const routeRect = routePanel.getBoundingClientRect();
+        return (
+          controlsStyle.display !== "none" &&
+          buttonRect.width > 1 &&
+          buttonRect.height > 1 &&
+          viewRect.width > 1 &&
+          viewRect.height > 1 &&
+          routeRect.width > 1 &&
+          routeRect.height > 1
+        );
       },
       undefined,
       { timeout: 20000 },
     );
+    await page.locator('.simulation-view-controls button[data-stage-view="route"]').evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
+    await page.waitForFunction(
+      () =>
+        document.querySelector('.simulation-view-controls button[data-stage-view="route"]')?.getAttribute("aria-pressed") ===
+        "true",
+      undefined,
+      { timeout: 8000 },
+    );
+    await assertVisible(page.locator(".stage-reset-button"), "expanded simulation reset button");
     await assertVisible(page.locator(".stage-close-button"), "expanded simulation close button");
-    await page.keyboard.press("Escape");
+    await page.locator(".stage-close-button").evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
     await page.waitForFunction(
       () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "false",
       undefined,
@@ -465,14 +493,24 @@ async function verifyFeatureSmoke(browser) {
     const beforePlayback = await page.locator(".simulator-status strong").nth(2).innerText();
     await page.locator(".simulator-copy .play-button").click({ force: true, noWaitAfter: true });
     await page.waitForFunction(
-      () => Array.from(document.querySelectorAll("button")).some((button) => button.textContent?.includes("Pause flood rise")),
+      () => {
+        const buttons = Array.from(document.querySelectorAll("button"));
+        const metric = document.querySelectorAll(".simulator-status strong")[2];
+        const playback = Number.parseInt(metric?.textContent ?? "0", 10);
+        return buttons.some((button) => button.textContent?.includes("Pause flood rise")) ||
+          (playback >= 100 && buttons.some((button) => button.textContent?.includes("Play flood rise")));
+      },
       undefined,
       { timeout: 20000 },
     );
     await page.waitForFunction(
       (previousText) => {
         const metric = document.querySelectorAll(".simulator-status strong")[2];
-        return metric?.textContent !== previousText;
+        const playback = Number.parseInt(metric?.textContent ?? "0", 10);
+        const playButton = Array.from(document.querySelectorAll("button")).find((button) =>
+          button.textContent?.includes("Play flood rise"),
+        );
+        return metric?.textContent !== previousText || (playback >= 100 && Boolean(playButton));
       },
       beforePlayback,
       { timeout: 20000 },

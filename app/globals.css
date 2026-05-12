@@ -182,16 +182,35 @@ button {
 
 .city-photo-layer {
   position: fixed;
-  inset: -8vh -10vw;
+  inset: clamp(14px, 2.2vw, 30px);
   z-index: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: clamp(16px, 2vw, 28px);
   pointer-events: none;
   background:
-    linear-gradient(90deg, rgba(3, 3, 4, 0.72), rgba(255, 255, 255, 0.04), rgba(3, 3, 4, 0.82)),
-    url("/assets/heavy-rain-storm.jpg") center 45% / cover no-repeat;
-  filter: grayscale(0.72) saturate(0.76) contrast(1.5) brightness(0.42);
-  opacity: 0.5;
+    linear-gradient(90deg, rgba(5, 10, 18, 0.66), rgba(5, 10, 18, 0.1) 48%, rgba(5, 10, 18, 0.5)),
+    linear-gradient(180deg, rgba(7, 16, 31, 0.2), rgba(7, 16, 31, 0.5)),
+    url("/assets/manhattan-clean-hero.png") center center / cover no-repeat;
+  filter: saturate(1.08) contrast(1.08) brightness(0.88);
+  opacity: var(--photo-opacity, 1);
   transform-origin: center;
+  overflow: hidden;
+  box-shadow:
+    0 42px 140px rgba(0, 0, 0, 0.46),
+    0 0 0 1px rgba(139, 233, 255, 0.18) inset;
   will-change: transform;
+}
+
+.city-photo-layer::before {
+  position: absolute;
+  inset: 9% 4% auto 3%;
+  content: "CITYLINE";
+  color: rgba(139, 188, 235, 0.12);
+  font-family: Impact, Haettenschweiler, "Arial Black", sans-serif;
+  font-size: clamp(8rem, 23vw, 24rem);
+  line-height: 0.72;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .city-photo-layer::after {
@@ -199,8 +218,8 @@ button {
   inset: 0;
   content: "";
   background:
-    linear-gradient(180deg, rgba(3, 3, 4, 0.64) 0%, rgba(3, 3, 4, 0.2) 36%, rgba(3, 3, 4, 0.72) 100%),
-    repeating-linear-gradient(102deg, rgba(255, 255, 255, 0.18) 0 1px, transparent 1px 14px);
+    linear-gradient(180deg, rgba(7, 16, 31, 0.2) 0%, rgba(7, 16, 31, 0.06) 42%, rgba(7, 16, 31, 0.55) 100%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 86px);
   mix-blend-mode: screen;
 }
 
@@ -210,10 +229,11 @@ button {
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 24%),
-    linear-gradient(260deg, rgba(3, 3, 4, 0.72), transparent 42%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.04), transparent 24%),
+    linear-gradient(260deg, rgba(3, 3, 4, 0.26), transparent 42%),
     radial-gradient(circle at 52% 54%, rgba(255, 54, 92, 0.08), transparent 26%),
     radial-gradient(circle at 72% 44%, rgba(34, 227, 255, 0.08), transparent 28%);
+  opacity: var(--photo-opacity, 0.76);
   filter: saturate(1.2);
   animation: gradientDrift 12s ease-in-out infinite alternate;
 }
@@ -224,7 +244,7 @@ button {
   z-index: 3;
   pointer-events: none;
   overflow: hidden;
-  opacity: 0.72;
+  opacity: 0.34;
   transform: translate3d(var(--reverse-parallax-x), var(--reverse-parallax-y), 0);
   transition: transform 140ms ease-out;
 }
@@ -287,11 +307,11 @@ button {
 .stage-dismiss-layer {
   position: fixed;
   inset: 0;
-  z-index: 110;
+  z-index: 4;
   border: 0;
   padding: 0;
-  background: rgba(6, 13, 30, 0.42);
-  cursor: zoom-out;
+  background: rgba(6, 13, 30, 0.28);
+  pointer-events: none;
 }
 
 @keyframes gradientDrift {
@@ -438,6 +458,8 @@ button:focus-visible {
   inset: 0;
   z-index: 2;
   pointer-events: auto;
+  opacity: var(--scene-opacity, 1);
+  transition: opacity 240ms ease;
 }
 
 .canvas-layer canvas {
@@ -448,7 +470,7 @@ button:focus-visible {
 }
 
 .cityline-next[data-stage-expanded="true"] .simulation-stage canvas {
-  cursor: zoom-out;
+  cursor: grab;
 }
 
 .cityline-next[data-stage-expanded="true"] .command-heading,
@@ -580,8 +602,10 @@ button:focus-visible {
 }
 
 .hero-section {
-  align-items: end;
-  padding-bottom: 13vh;
+  min-height: 100svh;
+  align-items: center;
+  padding: 124px 7vw 94px;
+  overflow: hidden;
 }
 
 .glass-copy,
@@ -629,6 +653,14 @@ button:focus-visible {
   transform: translate3d(var(--parallax-x), var(--parallax-y), 0);
   transition: transform 140ms ease-out;
   will-change: transform;
+}
+
+.photo-hero-copy {
+  width: min(680px, 62vw);
+  min-height: auto;
+  align-content: center;
+  z-index: 6;
+  padding: 0;
 }
 
 .hero-copy::before {
@@ -705,6 +737,21 @@ h1 {
   display: block;
 }
 
+.photo-hero-copy h1 {
+  max-width: 720px;
+  font-size: clamp(3.25rem, 6.9vw, 7.6rem);
+  line-height: 0.86;
+  text-transform: none;
+  text-wrap: balance;
+}
+
+.photo-hero-copy .hero-body {
+  max-width: 520px;
+  color: rgba(245, 244, 239, 0.78);
+  font-size: 0.95rem;
+  line-height: 1.42;
+}
+
 .hero-body {
   max-width: 430px;
   margin: 18px 0 0;
@@ -752,6 +799,126 @@ h1 {
   font-weight: 700;
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.photo-annotation-field {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.photo-annotation {
+  position: absolute;
+  min-width: 154px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 9px 10px;
+  color: #f8fdff;
+  background: rgba(14, 25, 39, 0.64);
+  backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.photo-annotation svg {
+  grid-row: 1 / 3;
+  color: var(--cyan);
+}
+
+.photo-annotation span {
+  color: rgba(245, 244, 239, 0.64);
+  font-size: 0.64rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.photo-annotation strong {
+  font-size: 0.78rem;
+}
+
+.photo-annotation--water {
+  top: 24%;
+  left: 44%;
+}
+
+.photo-annotation--risk {
+  top: 39%;
+  right: 22%;
+}
+
+.photo-annotation--route {
+  bottom: 31%;
+  left: 49%;
+}
+
+.photo-annotation--network {
+  bottom: 22%;
+  right: 30%;
+}
+
+.photo-route-card {
+  position: absolute;
+  right: 7vw;
+  bottom: 13vh;
+  z-index: 6;
+  width: min(300px, 24vw);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  padding: 12px;
+  color: #f8fdff;
+  background: rgba(14, 25, 39, 0.64);
+  backdrop-filter: blur(16px) saturate(1.32);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
+}
+
+.photo-route-card__media {
+  height: 130px;
+  border-radius: 7px;
+  margin-bottom: 12px;
+  background:
+    linear-gradient(180deg, rgba(7, 16, 31, 0.08), rgba(7, 16, 31, 0.5)),
+    url("/assets/manhattan-clean-hero.png") 52% 52% / 230% auto no-repeat;
+}
+
+.photo-route-card small {
+  display: block;
+  color: rgba(245, 244, 239, 0.62);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.photo-route-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.08rem;
+  line-height: 1.08;
+}
+
+.photo-route-card p {
+  margin: 7px 0 12px;
+  color: rgba(245, 244, 239, 0.68);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.photo-route-card a {
+  min-height: 34px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: #030304;
+  background: #f7f7f2;
+  font-size: 0.74rem;
+  font-weight: 950;
+  pointer-events: auto;
 }
 
 .story-section {
@@ -982,7 +1149,7 @@ h1 {
   inset: 0;
   z-index: 25;
   content: "";
-  background: rgba(6, 13, 30, 0.42);
+  background: rgba(6, 13, 30, 0.28);
   pointer-events: none;
 }
 
@@ -1024,19 +1191,20 @@ h1 {
   top: 50%;
   left: 50%;
   z-index: 120;
-  width: min(1180px, calc(100vw - 54px));
-  height: min(72vh, 760px);
-  max-height: calc(100svh - 78px);
+  width: min(1380px, calc(100vw - 38px));
+  height: min(84svh, 880px);
+  max-height: calc(100svh - 36px);
   translate: -50% -50%;
-  border-color: rgba(139, 233, 255, 0.58);
+  border-color: rgba(139, 233, 255, 0.72);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 44%),
-    linear-gradient(230deg, rgba(34, 227, 255, 0.16), rgba(255, 54, 92, 0.12)),
-    rgba(3, 3, 4, 0.88);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 40%),
+    radial-gradient(circle at 48% 38%, rgba(139, 233, 255, 0.18), transparent 42%),
+    linear-gradient(230deg, rgba(34, 227, 255, 0.18), rgba(255, 54, 92, 0.1)),
+    rgba(16, 24, 35, 0.94);
   box-shadow:
-    0 44px 160px rgba(4, 12, 28, 0.58),
+    0 44px 160px rgba(4, 12, 28, 0.46),
     0 0 0 1px rgba(255, 255, 255, 0.2) inset,
-    0 0 80px rgba(40, 217, 255, 0.18);
+    0 0 96px rgba(40, 217, 255, 0.24);
 }
 
 .simulation-stage:fullscreen {
@@ -1044,7 +1212,7 @@ h1 {
   height: 100vh;
   border-radius: 0;
   border: 0;
-  background: #030304;
+  background: #101823;
 }
 
 .simulation-stage canvas {
@@ -1086,6 +1254,7 @@ h1 {
   right: 14px;
   z-index: 4;
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   pointer-events: none;
@@ -1094,6 +1263,7 @@ h1 {
 .simulation-stage-hud span,
 .simulation-stage-hud strong,
 .stage-fullscreen-button,
+.stage-reset-button,
 .stage-close-button {
   border: 1px solid rgba(255, 255, 255, 0.56);
   border-radius: 999px;
@@ -1105,6 +1275,7 @@ h1 {
 }
 
 .stage-fullscreen-button,
+.stage-reset-button,
 .stage-close-button {
   width: 38px;
   height: 38px;
@@ -1121,10 +1292,15 @@ h1 {
 }
 
 .stage-fullscreen-button:hover,
+.stage-reset-button:hover,
 .stage-close-button:hover {
   border-color: rgba(40, 217, 255, 0.7);
   background: rgba(232, 247, 255, 0.92);
   transform: translateY(-2px);
+}
+
+.stage-fullscreen-button {
+  margin-left: auto;
 }
 
 .stage-close-button {
@@ -1149,7 +1325,7 @@ h1 {
   bottom: 14px;
   z-index: 5;
   display: none;
-  grid-template-columns: repeat(2, minmax(92px, 0.18fr)) minmax(180px, 0.34fr);
+  grid-template-columns: repeat(2, minmax(96px, 150px)) minmax(150px, 0.28fr) minmax(240px, 0.42fr);
   gap: 10px;
   pointer-events: auto;
 }
@@ -1198,6 +1374,82 @@ h1 {
   background: linear-gradient(135deg, rgba(110, 75, 255, 0.9), rgba(255, 47, 159, 0.9), rgba(40, 217, 255, 0.78));
   font-weight: 950;
   cursor: pointer;
+}
+
+.simulation-view-controls {
+  min-height: 54px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: rgba(8, 8, 10, 0.72);
+  backdrop-filter: blur(12px) saturate(1.35);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.24),
+    0 0 26px rgba(40, 217, 255, 0.12);
+}
+
+.simulation-view-controls button {
+  border: 0;
+  border-radius: 6px;
+  color: rgba(245, 244, 239, 0.68);
+  background: transparent;
+  font-size: 0.72rem;
+  font-weight: 950;
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.simulation-view-controls button:hover,
+.simulation-view-controls button.is-active {
+  color: #030304;
+  background: #f7f7f2;
+}
+
+.simulation-explore-panel {
+  position: absolute;
+  top: 74px;
+  right: 14px;
+  z-index: 5;
+  width: min(300px, calc(100% - 28px));
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  color: #f8fdff;
+  background: rgba(8, 8, 10, 0.7);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow:
+    0 18px 52px rgba(0, 0, 0, 0.28),
+    0 0 32px rgba(40, 217, 255, 0.12);
+  pointer-events: auto;
+}
+
+.simulation-explore-panel svg {
+  color: var(--cyan);
+}
+
+.simulation-explore-panel span {
+  display: block;
+  color: rgba(245, 244, 239, 0.68);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.simulation-explore-panel strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.82rem;
+  line-height: 1.22;
 }
 
 .simulator-status {
@@ -1515,10 +1767,22 @@ h1 {
     padding-bottom: 96px;
   }
 
+  .city-photo-layer {
+    inset: 10px;
+    border-radius: 16px;
+    background-position: 56% center;
+  }
+
   .hero-copy {
     width: 100%;
     min-height: 62vh;
     padding: 16px;
+  }
+
+  .photo-hero-copy {
+    width: 100%;
+    min-height: auto;
+    padding: 0;
   }
 
   .hero-card-index {
@@ -1535,9 +1799,20 @@ h1 {
     line-height: 0.76;
   }
 
+  .photo-hero-copy h1 {
+    max-width: 92%;
+    font-size: clamp(2.9rem, 15vw, 5.6rem);
+    line-height: 0.88;
+  }
+
   .hero-body {
     max-width: 82%;
     font-size: 0.86rem;
+  }
+
+  .photo-annotation-field,
+  .photo-route-card {
+    display: none;
   }
 
   .story-section {
@@ -1585,6 +1860,33 @@ h1 {
 
   .simulation-stage {
     height: clamp(210px, 30vh, 260px);
+  }
+
+  .simulation-stage.is-expanded,
+  .simulation-stage.is-fullscreen {
+    width: calc(100vw - 20px);
+    height: min(82svh, 720px);
+    max-height: calc(100svh - 24px);
+  }
+
+  .simulation-stage-controls {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stage-play-button,
+  .simulation-view-controls {
+    grid-column: 1 / -1;
+  }
+
+  .simulation-explore-panel {
+    top: 60px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    padding: 10px;
   }
 
   .simulator-status {
