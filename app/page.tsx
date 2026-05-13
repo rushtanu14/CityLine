@@ -434,6 +434,10 @@ export default function Page() {
 
   const handleStagePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    if (!isStageExpanded && !isStageFullscreen) {
+      setStageView("route");
+      setStageResetNonce((current) => current + 1);
+    }
     setIsStageExpanded(true);
   };
 
@@ -739,6 +743,10 @@ export default function Page() {
                   onPointerDown={handleStagePointerDown}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (!isStageExpanded && !isStageFullscreen) {
+                      setStageView("route");
+                      setStageResetNonce((current) => current + 1);
+                    }
                     setIsStageExpanded(true);
                   }}
                 >
@@ -770,10 +778,14 @@ export default function Page() {
                   aria-label="Expand 3D simulation"
                   onPointerDown={(event) => {
                     event.stopPropagation();
+                    setStageView("route");
+                    setStageResetNonce((current) => current + 1);
                     setIsStageExpanded(true);
                   }}
                   onClick={(event) => {
                     event.stopPropagation();
+                    setStageView("route");
+                    setStageResetNonce((current) => current + 1);
                     setIsStageExpanded(true);
                   }}
                 />
@@ -1053,10 +1065,16 @@ function urbanRandom(seed: number) {
 }
 
 function UrbanBuilding({
+  footprintScale = 1,
+  heightScale = 1,
   index,
+  muted = false,
   spec,
 }: {
+  footprintScale?: number;
+  heightScale?: number;
   index: number;
+  muted?: boolean;
   spec: CityBuildingSpec;
 }) {
   const floors = Math.max(3, Math.min(8, Math.round(spec.h * 2.05)));
@@ -1066,8 +1084,9 @@ function UrbanBuilding({
 
   return (
     <group
-      position={[spec.x, -0.5 + spec.h / 2, spec.z]}
+      position={[spec.x, -0.5 + (spec.h * heightScale) / 2, spec.z]}
       rotation={[0, spec.rotation ?? 0, 0]}
+      scale={[footprintScale, heightScale, footprintScale]}
       key={`${spec.x}-${spec.z}-${spec.h}-${index}`}
     >
       <mesh castShadow receiveShadow>
@@ -1078,6 +1097,8 @@ function UrbanBuilding({
           metalness={0.03}
           clearcoat={0.18}
           clearcoatRoughness={0.66}
+          transparent={muted}
+          opacity={muted ? 0.76 : 1}
         />
       </mesh>
       <mesh position={[0, -spec.h / 2 + 0.05, spec.d / 2 + 0.01]}>
@@ -1180,6 +1201,26 @@ function sampleRoute(points: Array<[number, number]>, t: number): [number, numbe
   ];
 }
 
+function distanceToRoutePath(x: number, z: number, points: Array<[number, number]>) {
+  if (points.length === 0) return Infinity;
+  if (points.length === 1) return Math.hypot(x - points[0][0], z - points[0][1]);
+
+  let closest = Infinity;
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const [startX, startZ] = points[index];
+    const [endX, endZ] = points[index + 1];
+    const dx = endX - startX;
+    const dz = endZ - startZ;
+    const lengthSquared = dx * dx + dz * dz || 1;
+    const t = THREE.MathUtils.clamp(((x - startX) * dx + (z - startZ) * dz) / lengthSquared, 0, 1);
+    const projectedX = startX + dx * t;
+    const projectedZ = startZ + dz * t;
+    closest = Math.min(closest, Math.hypot(x - projectedX, z - projectedZ));
+  }
+
+  return closest;
+}
+
 function CityGroundInfrastructure({ compact = false }: { compact?: boolean }) {
   const roadXs = compact ? [-2.55, -1.65, -0.75, 0.18, 1.08, 2.02, 2.85] : [-3.72, -2.88, -2.04, -1.18, -0.34, 0.52, 1.38, 2.24, 3.08, 3.86];
   const roadZs = compact ? [-1.36, -0.64, 0.08, 0.82, 1.48] : [-1.92, -1.28, -0.62, 0.02, 0.68, 1.34, 2.02];
@@ -1253,16 +1294,46 @@ function CityGroundInfrastructure({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function DetailedCityModel({ compact = false }: { compact?: boolean }) {
-  const visibleBlocks = compact
-    ? cityBlocks.filter((block) => Math.abs(block.x) < 3.3 && Math.abs(block.z) < 1.8).slice(0, 42)
-    : cityBlocks.filter((block) => Math.abs(block.x) < 3.7 && Math.abs(block.z) < 2.05).slice(0, 84);
+function DetailedCityModel({
+  compact = false,
+  exploreMode = false,
+  routePoints = [],
+}: {
+  compact?: boolean;
+  exploreMode?: boolean;
+  routePoints?: Array<[number, number]>;
+}) {
+  const visibleBlocks = useMemo(() => {
+    const bounds = compact
+      ? { x: 3.34, z: 1.82, limit: exploreMode ? 58 : 46 }
+      : { x: 3.7, z: 2.05, limit: 84 };
+    const clearance = exploreMode ? 0.72 : 0.16;
+
+    return cityBlocks
+      .filter((block) => Math.abs(block.x) < bounds.x && Math.abs(block.z) < bounds.z)
+      .filter((block) => !exploreMode || distanceToRoutePath(block.x, block.z, routePoints) > clearance || block.h < 1.1)
+      .sort((a, b) => {
+        const aScore = Math.hypot(a.x * 0.82, a.z * 1.2) + Math.abs(Math.sin(a.x * 2.4 + a.z)) * 0.12;
+        const bScore = Math.hypot(b.x * 0.82, b.z * 1.2) + Math.abs(Math.sin(b.x * 2.4 + b.z)) * 0.12;
+        return aScore - bScore;
+      })
+      .slice(0, bounds.limit);
+  }, [compact, exploreMode, routePoints]);
+  const buildingHeightScale = exploreMode ? 0.56 : 1;
+  const buildingFootprintScale = exploreMode ? 0.76 : 1;
 
   return (
     <group>
       <CityGroundInfrastructure compact={compact} />
       {visibleBlocks.map((block, index) => (
-        <UrbanBuilding key={`${block.x}-${block.z}`} index={index} spec={block} />
+        <UrbanBuilding
+          footprintScale={buildingFootprintScale}
+          heightScale={buildingHeightScale}
+          index={index}
+          key={`${block.x}-${block.z}`}
+          muted={exploreMode}
+          spec={block}
+        />
       ))}
       {[-3.2, -2.45, -1.66, -0.8, 0, 0.72, 1.48, 2.28, 3.08].map((x, index) => (
         <mesh key={`street-car-${x}-${index}`} position={[x, -0.415, 0.66 + (index % 2) * 0.28]} castShadow>
@@ -1288,7 +1359,17 @@ function ResidentModel({ scale = 0.18 }: { scale?: number }) {
   );
 }
 
-function CityModelLayer({ compact = false, source }: { compact?: boolean; source: CityModelSource }) {
+function CityModelLayer({
+  compact = false,
+  exploreMode = false,
+  routePoints = [],
+  source,
+}: {
+  compact?: boolean;
+  exploreMode?: boolean;
+  routePoints?: Array<[number, number]>;
+  source: CityModelSource;
+}) {
   if (source === "external" && CITY_MODEL_URL) {
     return <ExternalCityModel compact={compact} />;
   }
@@ -1297,7 +1378,7 @@ function CityModelLayer({ compact = false, source }: { compact?: boolean; source
     return <LocalCityModel compact={compact} />;
   }
 
-  return <DetailedCityModel compact={compact} />;
+  return <DetailedCityModel compact={compact} exploreMode={exploreMode} routePoints={routePoints} />;
 }
 
 function LocalCityModel({ compact = false }: { compact?: boolean }) {
@@ -1395,9 +1476,11 @@ function RouteRibbon({
 }
 
 function FloodWaterSurface({
+  exploreMode = false,
   level,
   compact = false,
 }: {
+  exploreMode?: boolean;
   level: number;
   compact?: boolean;
 }) {
@@ -1436,7 +1519,9 @@ function FloodWaterSurface({
     }
     const material = materialRef.current;
     if (material) {
-      material.opacity = THREE.MathUtils.lerp(0.36, 0.86, level);
+      material.opacity = exploreMode
+        ? THREE.MathUtils.lerp(0.2, 0.48, level)
+        : THREE.MathUtils.lerp(0.36, 0.86, level);
       material.normalScale.setScalar(0.26 + level * 0.35);
       material.metalness = THREE.MathUtils.lerp(0.02, 0.09, level);
       material.roughness = THREE.MathUtils.lerp(0.12, 0.04, level);
@@ -1547,6 +1632,7 @@ function SimulatorScene({
   const stageYaw = stageView === "route" ? -0.08 : stageView === "shelter" ? -0.78 : -0.34;
   const stagePitch = stageView === "route" ? -0.03 : stageView === "shelter" ? -0.1 : -0.05;
   const modelScale = isExpanded ? 1.18 : 1.08;
+  const routeLift = isExpanded ? 0.2 : -0.26;
 
   useFrame((state) => {
     const elapsed = state.clock.elapsedTime;
@@ -1575,7 +1661,7 @@ function SimulatorScene({
     if (routeRef.current) {
       routeRef.current.position.x = THREE.MathUtils.lerp(routeRef.current.position.x, routeStartX, 0.08);
       routeRef.current.position.z = THREE.MathUtils.lerp(routeRef.current.position.z, routeStartZ, 0.08);
-      routeRef.current.position.y = -0.26 + Math.sin(elapsed * 3) * 0.01;
+      routeRef.current.position.y = routeLift + Math.sin(elapsed * 3) * 0.01;
       routeRef.current.rotation.y = THREE.MathUtils.lerp(routeRef.current.rotation.y, routeAngle, 0.08);
       routeRef.current.scale.x = THREE.MathUtils.lerp(routeRef.current.scale.x, routeScale, 0.1);
     }
@@ -1629,8 +1715,8 @@ function SimulatorScene({
             />
           </mesh>
         ))}
-        <CityModelLayer compact source={cityModelSource} />
-        <FloodWaterSurface level={motion.flood} compact />
+        <CityModelLayer compact exploreMode={isExpanded} routePoints={sceneRouteState.points} source={cityModelSource} />
+        <FloodWaterSurface exploreMode={isExpanded} level={motion.flood} compact />
         <mesh ref={floodWallRef} position={[0, -0.54, 1.75]}>
           <boxGeometry args={[5.85, 1, 0.08]} />
           <meshPhysicalMaterial
@@ -1673,15 +1759,15 @@ function SimulatorScene({
             <meshStandardMaterial color="#dff9ff" emissive="#14d5ff" emissiveIntensity={0.54} transparent opacity={0.72} />
           </mesh>
         ))}
-        <group ref={routeRef} position={[routeStartX, -0.26, routeStartZ]} scale={[routeScale, 1, 1]} rotation={[0, routeAngle, 0]}>
-          <RouteRibbon routePoints={sceneRouteState.points} progress={motion.route} showWaypoints />
+        <group ref={routeRef} position={[routeStartX, routeLift, routeStartZ]} scale={[routeScale, 1, 1]} rotation={[0, routeAngle, 0]}>
+          <RouteRibbon routePoints={sceneRouteState.points} progress={motion.route} showWaypoints width={isExpanded ? 0.38 : undefined} />
           <Text
-            position={[0.2, 0.44, 0.08]}
+            position={[0.2, isExpanded ? 0.68 : 0.44, 0.08]}
             rotation={[-0.92, 0, 0]}
-            fontSize={0.18}
+            fontSize={isExpanded ? 0.24 : 0.18}
             fontWeight={900}
             color="#f8fdff"
-            outlineWidth={0.018}
+            outlineWidth={0.024}
             outlineColor="#ff2f9f"
             anchorX="center"
             anchorY="middle"
@@ -1690,32 +1776,32 @@ function SimulatorScene({
           </Text>
         </group>
         <group ref={residentRef} position={[routeStartX, -0.05, routeStartZ]}>
-          <ResidentModel scale={0.26} />
-          <pointLight intensity={10} distance={2.5} color="#ff2f9f" />
-          <pointLight intensity={7} distance={2} color="#8be9ff" />
+          <ResidentModel scale={isExpanded ? 0.34 : 0.26} />
+          <pointLight intensity={isExpanded ? 18 : 10} distance={3.2} color="#ff2f9f" />
+          <pointLight intensity={isExpanded ? 12 : 7} distance={2.8} color="#8be9ff" />
           <mesh position={[0, 0.03, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.26, 0.022, 10, 72]} />
+            <torusGeometry args={[isExpanded ? 0.42 : 0.26, 0.026, 10, 72]} />
             <meshStandardMaterial color="#ff2f9f" emissive="#ff2f9f" emissiveIntensity={2.1} />
           </mesh>
-          <mesh position={[0, 0.42, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.18, 0.014, 10, 56]} />
+          <mesh position={[0, isExpanded ? 0.58 : 0.42, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[isExpanded ? 0.3 : 0.18, 0.016, 10, 56]} />
             <meshStandardMaterial color="#f8fdff" emissive="#8be9ff" emissiveIntensity={1.7} />
           </mesh>
-          <mesh position={[0, 0.64, 0]}>
-            <cylinderGeometry args={[0.016, 0.016, 0.56, 12]} />
+          <mesh position={[0, isExpanded ? 0.88 : 0.64, 0]}>
+            <cylinderGeometry args={[0.018, 0.018, isExpanded ? 0.9 : 0.56, 12]} />
             <meshStandardMaterial color="#f8fdff" emissive="#ff2f9f" emissiveIntensity={1.8} />
           </mesh>
           <Text
-            position={[0, 0.98, 0.12]}
-            fontSize={0.2}
+            position={[0, isExpanded ? 1.48 : 0.98, 0.12]}
+            fontSize={isExpanded ? 0.3 : 0.2}
             fontWeight={900}
             color="#f8fdff"
-            outlineWidth={0.026}
+            outlineWidth={0.032}
             outlineColor="#081426"
             anchorX="center"
             anchorY="middle"
           >
-            MAYA
+            {isExpanded ? "MAYA / START" : "MAYA"}
           </Text>
         </group>
         <mesh position={[1.8, 0.32, -1.38]} rotation={[Math.PI / 2, 0, 0]}>
