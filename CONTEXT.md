@@ -12,7 +12,7 @@ Turn the current polished CityLine prototype into a credible demo by tightening 
 - Alert -> Address -> Risk -> Route -> Act: The core resident-facing product flow. The demo should make this path clear without long explanatory copy.
 - Command simulator: The central interactive 3D stage where flood rise, subject movement, route visibility, shelters, and infrastructure status can be inspected.
 - Sector: A zoomed story area or neighborhood slice within the larger city experience. Current implemented neighborhoods are South Street Seaport, Red Hook Waterfront, and Long Island City.
-- Route: A curated safe-path sample with start/end labels, path coordinates, blocked segments, travel time, status, and explanation.
+- Route: A curated recommended-route sample with start/end labels, path coordinates, blocked segments, travel time, status, and explanation. Prefer "recommended route" or "preferred route" over safety-certainty wording.
 - Hazard layer: A visual and informational overlay for flood, wildfire, earthquake, or heat/air risk. Flood is the deep V1 layer; the others are preview layers.
 - Public-data hook: A documented source or future integration target that gives credibility to a curated sample without pretending the sample is live operational guidance.
 - First real-data credibility pass: Transit closures and weather alerts. Flood depth, route geometry, shelters, and facilities can remain curated initially if they are clearly labeled.
@@ -27,8 +27,11 @@ Turn the current polished CityLine prototype into a credible demo by tightening 
   - Command panel: main alert and closure details.
   - Layer cards: compact status summary.
 - Provenance UI direction: Do not place a blunt visible "prototype" or "sample scenario" banner in the main website. Prefer polished source, timestamp, status, and confidence labels that feel operational while avoiding fake "live" claims.
+- Visible source-label direction: Use generic civic desk labels in the UI, such as "Weather desk," "Transit desk," "Infrastructure desk," "Air desk," "Seismic desk," and "Health desk." Keep agency/source names for future integration docs, not static-snapshot UI labels.
+- Safety note placement: Footer/bottom strip only. Keep hero, command, and layer UI clean.
 - Transit closure: A time-sensitive status item for subway, road, bridge, tunnel, or access-point disruption. It needs source, timestamp, affected asset, status, and fallback behavior.
 - Weather alert: A time-sensitive hazard notice for storm surge, rainfall, wind, heat, smoke, or air quality. It needs source, timestamp, severity, affected geography, and clear prototype framing.
+- Route wording: Use "recommended route" / "preferred route" in public UI and docs unless future verified routing data supports stronger language.
 
 ## Current Implementation Facts
 

@@ -1,7 +1,7 @@
 # CityLine PRD
 
 <thought>
-CityLine is a cinematic civic resilience web experience that opens with a scroll-driven 3D NYC flood sequence, then transitions into an emergency command view for understanding neighborhood risk, safe routes, shelters, infrastructure status, and preparedness actions.
+CityLine is a cinematic civic resilience web experience that opens with a scroll-driven 3D NYC flood sequence, then transitions into an emergency command view for understanding neighborhood risk, recommended routes, shelters, infrastructure status, and preparedness actions.
 </thought>
 <key_takeaway>
 The first milestone prioritizes visual polish and a memorable 3D flood story, but the product direction must stay grounded in real-world emergency usefulness and public-data credibility.
@@ -14,7 +14,7 @@ Build a desktop-first responsive visual prototype: cinematic NYC flood intro, ne
 
 CityLine is a hybrid civic resilience platform and immersive 3D website. It helps residents understand local emergency risk while giving students, educators, planners, and demo audiences a clear way to see how hazards, infrastructure, and public response interact.
 
-The first prototype focuses on a cinematic New York City flood sequence. Users scroll through a personal resident journey as water rises through streets, roads and subway corridors become unsafe, and safe routes, shelters, hospitals, risk scores, and action guidance appear as a bold editorial HUD over a 3D city.
+The first prototype focuses on a cinematic New York City flood sequence. Users scroll through a personal resident journey as water rises through streets, roads and subway corridors become unsafe, and recommended routes, shelters, hospitals, risk scores, and action guidance appear as a bold editorial HUD over a 3D city.
 
 CityLine should eventually support multiple hazards: flooding, wildfire, earthquake, and extreme heat / air quality. Flooding is the first visual hero because NYC flooding, subway disruption, bridges, tunnels, rain, and emergency lighting create the strongest cinematic opening. Los Angeles is the planned next demo city for wildfire, earthquake, heat, and broader California relevance.
 
@@ -29,7 +29,7 @@ CityLine should eventually support multiple hazards: flooding, wildfire, earthqu
 
 - See how a flood emergency affects a specific neighborhood.
 - Understand personal risk through a cinematic but practical address-based reveal.
-- Find safe routes, nearby shelters, hospitals, blocked roads, and blocked subway corridors.
+- Find recommended routes, nearby shelters, hospitals, blocked roads, and blocked subway corridors.
 - Receive clear emergency actions for what to do now.
 - Explore city-wide hazard layers and infrastructure dependencies.
 - Compare scenario and planning ideas later, including drainage, green space, barriers, shelters, transit, evacuation routes, and resource placement.
@@ -71,7 +71,7 @@ The first result should not be a static dashboard. The camera should fly from ci
 
 - local flood depth or danger level
 - why the risk matters
-- safe route to shelter or high ground
+- recommended route to shelter or high ground
 - blocked roads and subway corridors
 - nearest shelters and hospitals
 - emergency actions
@@ -108,7 +108,7 @@ V1 should visually include all four modes, but only the Address Risk Lens flow n
 - Let the user enter or select a curated NYC address/neighborhood.
 - Fly the camera to the selected area.
 - Show flood risk score, danger level, confidence, and explanation.
-- Show safe route to shelter/high ground.
+- Show recommended route to shelter/high ground.
 - Show blocked roads, subway corridors, tunnels, or bridges where relevant.
 - Show nearby shelters and hospitals.
 - Show clear resident-facing emergency actions.
@@ -136,7 +136,7 @@ The first prototype should visually include:
 - blocked roads and subway corridors
 - shelters
 - hospitals
-- safe routes
+- recommended routes
 - transit, tunnels, power zones, drainage, bridges
 - population density and vulnerable zones
 - schools or critical community sites if useful
@@ -231,6 +231,10 @@ UI placement:
 - Layer cards: compact status summary.
 
 The website should look like a legitimate civic command interface, not a toy prototype. Avoid blunt in-page labels like "prototype" or "sample scenario" in the primary experience. Instead, use polished source, timestamp, status, and confidence labels that communicate provenance without breaking the cinematic command feel. Do not falsely claim seeded snapshots are live, official, or agency-issued emergency instructions.
+
+For static seeded snapshots, visible source labels should use generic civic desk wording such as "Weather desk," "Transit desk," and "Infrastructure desk." Real agency and dataset names belong in integration docs until the app actually fetches or validates those sources.
+
+Any safety note should live only in the footer or bottom strip, keeping the hero, command view, and layer cards clean.
 
 ## Data Model
 
@@ -358,7 +362,7 @@ The website should look like a legitimate civic command interface, not a toy pro
 
 Preferred resume angle:
 
-Built CityLine, a civic resilience web platform that helps residents understand emergency risk, safe routes, shelters, and preparedness actions using public hazard, infrastructure, and emergency-resource data in an immersive 3D city interface.
+Built CityLine, a civic resilience web platform that helps residents understand emergency risk, recommended routes, shelters, and preparedness actions using public hazard, infrastructure, and emergency-resource data in an immersive 3D city interface.
 
 ## Milestones
 

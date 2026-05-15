@@ -100,7 +100,7 @@ const storyPanels = [
   },
   {
     eyebrow: "03 / Route",
-    title: "A safe path draws itself around the failing grid.",
+    title: "A recommended path draws itself around the failing grid.",
     body: "The subject stays visible while CityLine rotates from cinematic story into practical route intelligence.",
     stat: "12 min walk",
   },
@@ -897,7 +897,7 @@ export default function Page() {
             </div>
             <p>
               Drag the city stage to inspect the route. Press play to raise the flood and move Maya toward high ground.
-              Safe route for {selectedRoute.destinationName}: {selectedRoute.startLabel} → {selectedRoute.endLabel}.
+              Recommended route for {selectedRoute.destinationName}: {selectedRoute.startLabel} → {selectedRoute.endLabel}.
             </p>
             <FMotion.button
               className="play-button"
@@ -1028,10 +1028,13 @@ export default function Page() {
         </FMotion.div>
         <FMotion.div className="resume-strip command-card" whileHover={{ y: -2 }} variants={panelLift} initial="hidden" whileInView="visible">
           <Building2 size={22} />
-          <p>
-            Built with Next.js, React Three Fiber, GSAP ScrollTrigger, and Lenis to demonstrate cinematic interaction,
-            practical civic UX, and high-resolution city-backed 3D storytelling.
-          </p>
+          <div>
+            <p>
+              Built with Next.js, React Three Fiber, GSAP ScrollTrigger, and Lenis to demonstrate cinematic interaction,
+              practical civic UX, and high-resolution city-backed 3D storytelling.
+            </p>
+            <small>Decision-support demo. Follow official emergency instructions during real events.</small>
+          </div>
           <ArrowUpRight size={22} />
         </FMotion.div>
       </section>

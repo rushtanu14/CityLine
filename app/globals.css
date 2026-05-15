@@ -1788,10 +1788,22 @@ h1 {
   pointer-events: auto;
 }
 
-.resume-strip p {
+.resume-strip p,
+.resume-strip small {
   margin: 0;
   text-transform: none;
+}
+
+.resume-strip p {
   font-weight: 500;
+}
+
+.resume-strip small {
+  display: block;
+  margin-top: 6px;
+  color: rgba(245, 244, 239, 0.52);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 @media (max-width: 1080px) {
