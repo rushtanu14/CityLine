@@ -216,6 +216,22 @@ Potential public-data sources to evaluate later:
 
 V1 can use curated sample data as long as the UI clearly feels plausible and the PRD documents which data sources should replace mocks later.
 
+The first real-data credibility pass should prioritize transit closures and weather alerts using static seeded snapshots for all three current neighborhoods: South Street Seaport, Red Hook Waterfront, and Long Island City. Flood depth, route geometry, shelters, and facilities may remain curated during this pass.
+
+Initial seeded events:
+
+- South Street Seaport: storm surge warning plus South Ferry subway / FDR restriction.
+- Red Hook Waterfront: coastal flood warning plus Hamilton Ave / Imlay underpass restriction.
+- Long Island City: heavy rain / riverfront flood watch plus Vernon Blvd / Gantry transit-access restriction.
+
+UI placement:
+
+- Hero: small status annotations only.
+- Command panel: main alert and closure details.
+- Layer cards: compact status summary.
+
+The website should look like a legitimate civic command interface, not a toy prototype. Avoid blunt in-page labels like "prototype" or "sample scenario" in the primary experience. Instead, use polished source, timestamp, status, and confidence labels that communicate provenance without breaking the cinematic command feel. Do not falsely claim seeded snapshots are live, official, or agency-issued emergency instructions.
+
 ## Data Model
 
 ### HazardLayer
@@ -277,13 +293,41 @@ V1 can use curated sample data as long as the UI clearly feels plausible and the
 - status
 - riskLevel
 - dependencyNotes
+- source
+- lastUpdated
+
+### TransitClosure
+
+- id
+- affectedAssetId
+- mode: subway | road | bridge | tunnel | ferry | pedestrian_access
+- status: open | watch | restricted | closed
+- severity
+- summary
+- source
+- lastUpdated
+- expiresAt
+- fallbackLabel
+
+### WeatherAlert
+
+- id
+- hazardType: storm_surge | rainfall | wind | heat | smoke | air_quality
+- severity
+- affectedArea
+- summary
+- source
+- issuedAt
+- expiresAt
+- confidence
 
 ## Safety And Risks
 
 - CityLine must avoid presenting simulated or curated outputs as verified live emergency instructions.
-- V1 should include clear but unobtrusive language when data is simulated, curated, or stale.
+- V1 should include clear but unobtrusive provenance states through source, timestamp, status, and confidence labels rather than a disruptive prototype banner.
 - Emergency action language should be practical but not pretend to replace official alerts.
 - If live data is later integrated, the UI needs timestamps, source labels, uncertainty, and fallback states.
+- Static seeded snapshots must not be labeled as live or official.
 - Address entry must be handled carefully if real geocoding is added; avoid storing personal addresses unnecessarily.
 - Public-data visualizations should avoid false precision. Use confidence and uncertainty where appropriate.
 
@@ -330,7 +374,7 @@ Built CityLine, a civic resilience web platform that helps residents understand 
 
 ### Milestone 2: Credibility Layer
 
-- Replace or enrich curated data with public-data-backed samples.
+- Replace or enrich curated transit-closure and weather-alert data with static seeded public-data snapshots first.
 - Add source labels and last-updated states.
 - Add neighborhood picker or address autocomplete.
 - Add basic geospatial data normalization.
@@ -352,7 +396,7 @@ Built CityLine, a civic resilience web platform that helps residents understand 
 
 - Should the first cinematic sequence follow one resident, several neighborhoods, or a city-wide emergency escalation?
 - Should NYC visuals be recognizable enough to imply specific boroughs, or stylized enough to avoid strict map accuracy?
-- Which public datasets are practical for the first data-backed pass?
+- Should seeded transit/weather snapshots later become build-time fetched data or live client/API data after the hackathon build is stable?
 - How much official-emergency disclaimer language is needed without weakening the visual experience?
 - Should wildfire become the cinematic hero later if floodwater visuals are not strong enough?
 

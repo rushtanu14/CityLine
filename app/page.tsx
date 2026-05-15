@@ -17,9 +17,9 @@ import Lenis from "lenis";
 import {
   ArrowUpRight,
   Building2,
+  CloudRain,
   Crosshair,
   Gauge,
-  Hospital,
   Maximize2,
   Minimize2,
   Navigation,
@@ -28,13 +28,21 @@ import {
   RadioTower,
   RotateCcw,
   Route,
-  Waves,
+  TrainFront,
   X,
 } from "lucide-react";
 import { motion as FMotion } from "framer-motion";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { facilities, hazards, infrastructure, neighborhoods, routes } from "../src/data/cityData";
+import {
+  facilities,
+  getTransitClosureFor,
+  getWeatherAlertFor,
+  hazards,
+  infrastructure,
+  neighborhoods,
+  routes,
+} from "../src/data/cityData";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -59,7 +67,7 @@ type RouteState = {
   destinationName: string;
 };
 
-type CommandMode = "actions" | "shelters" | "infra";
+type CommandMode = "status" | "actions" | "shelters" | "infra";
 type StageView = "overview" | "route" | "shelter";
 
 const CITY_MODEL_URL = process.env.NEXT_PUBLIC_CITYLINE_CITY_MODEL_URL?.trim() ?? "";
@@ -105,6 +113,7 @@ const scenarioLevers = [
 ];
 
 const commandModes: Array<{ id: CommandMode; label: string }> = [
+  { id: "status", label: "Status" },
   { id: "actions", label: "Actions" },
   { id: "shelters", label: "Shelters" },
   { id: "infra", label: "Infra" },
@@ -166,7 +175,7 @@ export default function Page() {
   const [isCommandPast, setIsCommandPast] = useState(false);
   const [cityModelSource, setCityModelSource] = useState<CityModelSource>(CITY_MODEL_SOURCE_PRESET);
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(neighborhoods[0].id);
-  const [commandMode, setCommandMode] = useState<CommandMode>("actions");
+  const [commandMode, setCommandMode] = useState<CommandMode>("status");
   const [stageView, setStageView] = useState<StageView>("overview");
   const [stageResetNonce, setStageResetNonce] = useState(0);
   const playbackRef = useRef<{ startedAt: number; startFlood: number; startSim: number } | null>(null);
@@ -382,6 +391,8 @@ export default function Page() {
         ? "Bundled GLB city"
         : "Detailed generated city";
   const selected = neighborhoods.find((item) => item.id === selectedNeighborhood) ?? neighborhoods[0];
+  const selectedWeatherAlert = useMemo(() => getWeatherAlertFor(selected.id), [selected.id]);
+  const selectedTransitClosure = useMemo(() => getTransitClosureFor(selected.id), [selected.id]);
   const selectedFacilities = useMemo(
     () =>
       facilities.filter((facility) =>
@@ -582,7 +593,7 @@ export default function Page() {
         <FMotion.div className="hero-copy photo-hero-copy">
           <div className="poster-meta">
             <span>NYC FLOOD OPS</span>
-            <span>Photo route lab</span>
+            <span>Route intelligence</span>
           </div>
           <p className="kicker">Flash flood warning / South Street Seaport</p>
           <h1 className="editorial-title" aria-label="CityLine flood route command">
@@ -590,7 +601,7 @@ export default function Page() {
             <span>that move with the water.</span>
           </h1>
           <p className="hero-body">
-            CityLine turns one block, live hazard layers, and shelter routes into an annotated civic command view.
+            CityLine turns one block, timed hazard status, and shelter routes into an annotated civic command view.
           </p>
           <div className="hero-actions">
             <FMotion.a href="#command" onClick={handleSectionLink("command")} whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.985 }}>
@@ -599,11 +610,11 @@ export default function Page() {
             <span className="city-source-pill">{cityModelCredit}</span>
           </div>
         </FMotion.div>
-        <div className="photo-annotation-field" aria-label="CityLine live hero annotations">
+        <div className="photo-annotation-field" aria-label="CityLine hero status annotations">
           <div className="photo-annotation photo-annotation--water">
-            <Waves size={14} />
-            <span>Street depth</span>
-            <strong>{selected.floodDepth}</strong>
+            <CloudRain size={14} />
+            <span>Weather alert</span>
+            <strong>{selectedWeatherAlert.headline}</strong>
           </div>
           <div className="photo-annotation photo-annotation--risk">
             <Gauge size={14} />
@@ -616,14 +627,14 @@ export default function Page() {
             <strong>{selectedRoute.endLabel}</strong>
           </div>
           <div className="photo-annotation photo-annotation--network">
-            <Hospital size={14} />
-            <span>Emergency nodes</span>
-            <strong>{selectedFacilities.length} online</strong>
+            <TrainFront size={14} />
+            <span>Transit status</span>
+            <strong>{selectedTransitClosure.status}</strong>
           </div>
         </div>
         <aside className="photo-route-card" aria-label="Recommended route snapshot">
           <div className="photo-route-card__media" aria-hidden="true" />
-          <small>{selected.borough} / Flood scenario</small>
+          <small>{selected.borough} / {selectedWeatherAlert.severity}</small>
           <strong>{selectedRoute.destinationName}</strong>
           <p>{selectedRoute.startLabel} → {selectedRoute.endLabel}</p>
           <a href="#command" onClick={handleSectionLink("command")}>
@@ -696,7 +707,7 @@ export default function Page() {
                 className={cityModelSource === "sample" ? "is-active" : ""}
                 onClick={() => setCityModelSource("sample")}
               >
-                GLB sample
+                City GLB
               </button>
               <button
                 type="button"
@@ -713,7 +724,7 @@ export default function Page() {
               </button>
             </div>
             <p className="source-note">
-              3D sources: generated footprints, bundled GLB sample, marketplace-ready GLB, future CityGML conversion.
+              3D sources: generated footprints, bundled city GLB, marketplace-ready GLB, future CityGML conversion.
             </p>
             <div className="neighborhood-list">
               {neighborhoods.map((item) => (
@@ -791,7 +802,7 @@ export default function Page() {
                 />
               ) : null}
               <div className="simulation-stage-hud">
-                <span>Live route model</span>
+                <span>Route model</span>
                 <strong>{selected.name}</strong>
                 <button
                   className="stage-fullscreen-button"
@@ -907,7 +918,7 @@ export default function Page() {
           >
             <div className="panel-title">
               <Navigation size={18} />
-              Helpful actions
+              Response status
             </div>
             <div className="action-mode-tabs" role="tablist" aria-label="Command panel mode">
               {commandModes.map((mode) => (
@@ -922,6 +933,32 @@ export default function Page() {
                 </button>
               ))}
             </div>
+            {commandMode === "status" ? (
+              <div className="status-stack">
+                <div className="status-row is-weather">
+                  <div className="status-row__head">
+                    <CloudRain size={16} />
+                    <span>{selectedWeatherAlert.severity}</span>
+                  </div>
+                  <strong>{selectedWeatherAlert.headline}</strong>
+                  <p>{selectedWeatherAlert.summary}</p>
+                  <small>
+                    {selectedWeatherAlert.source} · Issued {selectedWeatherAlert.issuedAt} · Until {selectedWeatherAlert.expiresAt}
+                  </small>
+                </div>
+                <div className="status-row is-transit">
+                  <div className="status-row__head">
+                    <TrainFront size={16} />
+                    <span>{selectedTransitClosure.status}</span>
+                  </div>
+                  <strong>{selectedTransitClosure.headline}</strong>
+                  <p>{selectedTransitClosure.summary}</p>
+                  <small>
+                    {selectedTransitClosure.source} · Updated {selectedTransitClosure.lastUpdated} · {selectedTransitClosure.fallbackLabel}
+                  </small>
+                </div>
+              </div>
+            ) : null}
             {commandMode === "actions" ? (
               selected.actionSteps.map((step, index) => (
                 <div className="action-row" key={step}>
@@ -944,7 +981,10 @@ export default function Page() {
                 <div className="facility-row is-infra" key={asset.id}>
                   <span>{asset.status}</span>
                   <strong>{asset.name}</strong>
-                  <small>{asset.dependencyNotes}</small>
+                  <small>
+                    {asset.dependencyNotes}
+                    {asset.source && asset.lastUpdated ? ` · ${asset.source} · ${asset.lastUpdated}` : ""}
+                  </small>
                 </div>
               ))
             ) : null}
@@ -966,6 +1006,22 @@ export default function Page() {
                 <span>{hazard.severity}</span>
                 <h3>{hazard.name}</h3>
                 <p>{hazard.summary}</p>
+                {hazard.id === "flood" ? (
+                  <div className="layer-status-list">
+                    <div>
+                      <span>Weather</span>
+                      <strong>{selectedWeatherAlert.headline}</strong>
+                    </div>
+                    <div>
+                      <span>Transit</span>
+                      <strong>{selectedTransitClosure.assetLabel}</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <small className="layer-source">
+                    {hazard.confidence} · {hazard.source}
+                  </small>
+                )}
               </article>
             );
           })}

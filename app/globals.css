@@ -1561,7 +1561,7 @@ h1 {
   border: 1px solid rgba(245, 244, 239, 0.14);
   border-radius: 8px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   background: rgba(255, 255, 255, 0.04);
@@ -1586,6 +1586,67 @@ h1 {
   color: #030304;
   background: linear-gradient(135deg, #f7f7f2, #cfd4dc, #ffffff);
   box-shadow: 0 12px 30px rgba(255, 255, 255, 0.1);
+}
+
+.status-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.status-row {
+  min-height: 142px;
+  border: 1px solid rgba(40, 217, 255, 0.28);
+  border-radius: 8px;
+  padding: 13px;
+  background:
+    linear-gradient(135deg, rgba(40, 217, 255, 0.16), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.06);
+}
+
+.status-row.is-transit {
+  border-color: rgba(255, 79, 135, 0.28);
+  background:
+    linear-gradient(135deg, rgba(255, 79, 135, 0.13), rgba(110, 75, 255, 0.1)),
+    rgba(255, 255, 255, 0.06);
+}
+
+.status-row__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cyan);
+}
+
+.status-row.is-transit .status-row__head {
+  color: var(--signal);
+}
+
+.status-row__head span {
+  color: currentColor;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.status-row strong {
+  display: block;
+  margin-top: 8px;
+  line-height: 1.14;
+}
+
+.status-row p {
+  margin: 7px 0 0;
+  color: rgba(245, 244, 239, 0.68);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.status-row small {
+  display: block;
+  margin-top: 8px;
+  color: rgba(245, 244, 239, 0.56);
+  font-size: 0.68rem;
+  line-height: 1.35;
 }
 
 .facility-row {
@@ -1661,7 +1722,7 @@ h1 {
 }
 
 .layer-card {
-  min-height: 250px;
+  min-height: 276px;
   display: grid;
   align-content: start;
   gap: 10px;
@@ -1679,6 +1740,42 @@ h1 {
 .layer-card h3 {
   font-size: 2rem;
   line-height: 0.92;
+}
+
+.layer-status-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.layer-status-list div {
+  border: 1px solid rgba(245, 244, 239, 0.14);
+  border-radius: 8px;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.layer-status-list span,
+.layer-source {
+  color: rgba(245, 244, 239, 0.58);
+  font-size: 0.66rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.layer-status-list strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.layer-source {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.35;
+  text-transform: none;
 }
 
 .resume-strip {

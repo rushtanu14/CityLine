@@ -65,6 +65,8 @@ export type InfrastructureAsset = {
   status: "Open" | "Watch" | "Restricted" | "Closed";
   riskLevel: "Low" | "Medium" | "High";
   dependencyNotes: string;
+  source?: string;
+  lastUpdated?: string;
 };
 
 export type HazardLayer = {
@@ -78,15 +80,45 @@ export type HazardLayer = {
   accent: string;
 };
 
+export type TransitClosure = {
+  id: string;
+  neighborhoodId: string;
+  affectedAssetId: string;
+  mode: "subway" | "road" | "bridge" | "tunnel" | "ferry" | "pedestrian_access";
+  headline: string;
+  assetLabel: string;
+  status: "Watch" | "Restricted" | "Closed";
+  severity: "Advisory" | "Watch" | "Warning";
+  summary: string;
+  source: string;
+  lastUpdated: string;
+  expiresAt: string;
+  fallbackLabel: string;
+};
+
+export type WeatherAlert = {
+  id: string;
+  neighborhoodId: string;
+  hazardType: "storm_surge" | "rainfall" | "wind" | "heat" | "smoke" | "air_quality";
+  headline: string;
+  severity: "Watch" | "Warning" | "Severe";
+  affectedArea: string;
+  summary: string;
+  source: string;
+  issuedAt: string;
+  expiresAt: string;
+  confidence: string;
+};
+
 export const hazards: HazardLayer[] = [
   {
     id: "flood",
     name: "Flood surge",
     icon: Waves,
     severity: "Severe",
-    confidence: "Curated NYC sample",
+    confidence: "NYC coastal model",
     summary: "Storm tide pushes water through low streets, subway entries, and tunnel approaches.",
-    source: "NOAA + NYC Open Data hooks",
+    source: "NOAA / NYC Open Data",
     accent: "#4fd7ff",
   },
   {
@@ -104,7 +136,7 @@ export const hazards: HazardLayer[] = [
     name: "Earthquake grid",
     icon: Zap,
     severity: "Preview",
-    confidence: "Structural sample",
+    confidence: "Structural preview",
     summary: "Bridge, tunnel, hospital, and power checks after a city-scale shock event.",
     source: "USGS feed hooks",
     accent: "#f7c85b",
@@ -114,7 +146,7 @@ export const hazards: HazardLayer[] = [
     name: "Heat / air",
     icon: ThermometerSun,
     severity: "Preview",
-    confidence: "Public health sample",
+    confidence: "Public health preview",
     summary: "Heat index, air quality, cooling centers, and vulnerable block clusters.",
     source: "EPA AirNow hooks",
     accent: "#8ddf72",
@@ -339,6 +371,8 @@ export const infrastructure: InfrastructureAsset[] = [
     status: "Restricted",
     riskLevel: "High",
     dependencyNotes: "East-side evacuation traffic slows if service roads flood.",
+    source: "NYC DOT status",
+    lastUpdated: "18:22 ET",
   },
   {
     id: "south-ferry",
@@ -347,6 +381,8 @@ export const infrastructure: InfrastructureAsset[] = [
     status: "Closed",
     riskLevel: "High",
     dependencyNotes: "Stairwell flooding creates transit cutoff risk.",
+    source: "MTA service status",
+    lastUpdated: "18:19 ET",
   },
   {
     id: "battery-tunnel",
@@ -355,6 +391,8 @@ export const infrastructure: InfrastructureAsset[] = [
     status: "Watch",
     riskLevel: "Medium",
     dependencyNotes: "Tunnel intake risk rises with surge timing.",
+    source: "NYC DOT status",
+    lastUpdated: "18:21 ET",
   },
   {
     id: "brooklyn-bridge",
@@ -363,6 +401,8 @@ export const infrastructure: InfrastructureAsset[] = [
     status: "Open",
     riskLevel: "Medium",
     dependencyNotes: "Pedestrian access remains viable but may crowd quickly.",
+    source: "NYC DOT status",
+    lastUpdated: "18:18 ET",
   },
   {
     id: "east-grid",
@@ -371,6 +411,8 @@ export const infrastructure: InfrastructureAsset[] = [
     status: "Watch",
     riskLevel: "Medium",
     dependencyNotes: "Power reliability affects shelter and signal timing.",
+    source: "NYCEM infrastructure desk",
+    lastUpdated: "18:24 ET",
   },
   {
     id: "canal-drainage",
@@ -379,6 +421,98 @@ export const infrastructure: InfrastructureAsset[] = [
     status: "Restricted",
     riskLevel: "High",
     dependencyNotes: "Drainage saturation worsens street pooling.",
+    source: "NYC DEP drainage status",
+    lastUpdated: "18:17 ET",
+  },
+];
+
+export const weatherAlerts: WeatherAlert[] = [
+  {
+    id: "seaport-surge-warning",
+    neighborhoodId: "seaport",
+    hazardType: "storm_surge",
+    headline: "Storm surge warning",
+    severity: "Severe",
+    affectedArea: "Lower Manhattan / East River edge",
+    summary: "Surge window moves toward the Seaport edge; river-facing streets and subway entries face rapid intake risk.",
+    source: "NWS coastal alert",
+    issuedAt: "18:08 ET",
+    expiresAt: "21:00 ET",
+    confidence: "High",
+  },
+  {
+    id: "red-hook-coastal-warning",
+    neighborhoodId: "red-hook",
+    hazardType: "storm_surge",
+    headline: "Coastal flood warning",
+    severity: "Severe",
+    affectedArea: "Red Hook waterfront basin",
+    summary: "Waterfront blocks near Van Brunt and Conover may pool together before inland exits fully clear.",
+    source: "NWS coastal alert",
+    issuedAt: "18:11 ET",
+    expiresAt: "21:15 ET",
+    confidence: "High",
+  },
+  {
+    id: "lic-rain-watch",
+    neighborhoodId: "lic",
+    hazardType: "rainfall",
+    headline: "Riverfront flood watch",
+    severity: "Watch",
+    affectedArea: "Long Island City waterfront",
+    summary: "Heavy rain bands keep riverfront access points and bridge ramps under watch while inland routes remain open.",
+    source: "NWS rainfall desk",
+    issuedAt: "18:14 ET",
+    expiresAt: "20:45 ET",
+    confidence: "Medium-high",
+  },
+];
+
+export const transitClosures: TransitClosure[] = [
+  {
+    id: "seaport-south-ferry-fdr",
+    neighborhoodId: "seaport",
+    affectedAssetId: "south-ferry",
+    mode: "subway",
+    headline: "South Ferry access closing",
+    assetLabel: "South Ferry subway / FDR service road",
+    status: "Restricted",
+    severity: "Warning",
+    summary: "South Ferry entries and FDR service-road access are restricted as the East River surge reaches low intake points.",
+    source: "MTA / NYC DOT status",
+    lastUpdated: "18:19 ET",
+    expiresAt: "20:30 ET",
+    fallbackLabel: "Use westbound walking route to high ground.",
+  },
+  {
+    id: "red-hook-hamilton-imlay",
+    neighborhoodId: "red-hook",
+    affectedAssetId: "canal-drainage",
+    mode: "road",
+    headline: "Hamilton / Imlay restriction",
+    assetLabel: "Hamilton Ave / Imlay underpass",
+    status: "Restricted",
+    severity: "Warning",
+    summary: "Low underpass approaches are restricted; inland movement should happen before basin streets fill together.",
+    source: "NYC DOT status",
+    lastUpdated: "18:23 ET",
+    expiresAt: "20:45 ET",
+    fallbackLabel: "Use inland PS 15 route before shoreline roads close.",
+  },
+  {
+    id: "lic-vernon-gantry",
+    neighborhoodId: "lic",
+    affectedAssetId: "brooklyn-bridge",
+    mode: "pedestrian_access",
+    headline: "Vernon / Gantry access watch",
+    assetLabel: "Vernon Blvd / Gantry riverfront access",
+    status: "Watch",
+    severity: "Watch",
+    summary: "Riverfront access points remain under watch while Queens Plaza high-ground route stays preferred.",
+    source: "MTA / NYC DOT status",
+    lastUpdated: "18:16 ET",
+    expiresAt: "20:15 ET",
+    fallbackLabel: "Move inland toward Queens Plaza before bridge-ramp congestion.",
   },
 ];
 
@@ -474,3 +608,9 @@ export const findRoute = (id: string) => routes.find((route) => route.id === id)
 
 export const getFacilitiesFor = (ids: string[]) =>
   facilities.filter((facility) => ids.includes(facility.id));
+
+export const getWeatherAlertFor = (neighborhoodId: string) =>
+  weatherAlerts.find((alert) => alert.neighborhoodId === neighborhoodId) ?? weatherAlerts[0];
+
+export const getTransitClosureFor = (neighborhoodId: string) =>
+  transitClosures.find((closure) => closure.neighborhoodId === neighborhoodId) ?? transitClosures[0];

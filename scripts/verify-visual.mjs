@@ -376,10 +376,38 @@ async function verifyFeatureSmoke(browser) {
       throw new Error(`embedded simulator should be wide and short before expansion, got ${JSON.stringify(compactStageRect)}`);
     }
 
-    await assertVisible(page.locator(".simulation-click-layer"), "simulation expand hit target");
-    await page.locator(".simulation-click-layer").evaluate((element) => {
-      if (element instanceof HTMLElement) element.click();
+    const expandTarget = page.locator(".simulation-click-layer");
+    await expandTarget.waitFor({ state: "attached", timeout: 20000 });
+    await page.waitForFunction(
+      () => {
+        const element = document.querySelector(".simulation-click-layer");
+        if (!(element instanceof HTMLElement)) return false;
+        const rect = element.getBoundingClientRect();
+        const style = window.getComputedStyle(element);
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const hitTarget = document.elementFromPoint(centerX, centerY);
+        return (
+          rect.width > 40 &&
+          rect.height > 40 &&
+          rect.bottom > 0 &&
+          rect.right > 0 &&
+          rect.top < window.innerHeight &&
+          rect.left < window.innerWidth &&
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          style.pointerEvents !== "none" &&
+          (hitTarget === element || element.contains(hitTarget))
+        );
+      },
+      undefined,
+      { timeout: 20000 },
+    );
+    const expandPoint = await expandTarget.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     });
+    await page.mouse.click(expandPoint.x, expandPoint.y);
     logStep("features: simulator expand");
     await page.waitForFunction(
       () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "true",
@@ -441,9 +469,7 @@ async function verifyFeatureSmoke(browser) {
     );
     await assertVisible(page.locator(".stage-reset-button"), "expanded simulation reset button");
     await assertVisible(page.locator(".stage-close-button"), "expanded simulation close button");
-    await page.locator(".stage-close-button").evaluate((element) => {
-      if (element instanceof HTMLElement) element.click();
-    });
+    await page.locator(".stage-close-button").click({ force: true });
     await page.waitForFunction(
       () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "false",
       undefined,
@@ -476,6 +502,11 @@ async function verifyFeatureSmoke(browser) {
       }
     }
 
+    await page.locator(".action-mode-tabs button", { hasText: "Status" }).evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
+    });
+    await assertVisible(page.locator(".status-row", { hasText: "Storm surge warning" }), "weather status mode");
+    await assertVisible(page.locator(".status-row", { hasText: "South Ferry access closing" }), "transit status mode");
     await page.locator(".action-mode-tabs button", { hasText: "Shelters" }).evaluate((element) => {
       if (element instanceof HTMLElement) element.click();
     });
@@ -533,8 +564,12 @@ async function verifyFeatureSmoke(browser) {
     await activateAnchor(page, '.site-nav a[href="#layers"]', "#layers");
     await waitForScrollToSettle(page);
     for (const hazard of ["Flood surge", "Wildfire smoke", "Earthquake grid", "Heat / air"]) {
-      await assertVisible(page.locator(".layer-card", { hasText: hazard }), `hazard layer ${hazard}`);
+      const card = page.locator(".layer-card", { hasText: hazard });
+      await card.scrollIntoViewIfNeeded();
+      await assertVisible(card, `hazard layer ${hazard}`);
     }
+    await assertVisible(page.locator(".layer-card", { hasText: "Storm surge warning" }), "flood layer weather status");
+    await assertVisible(page.locator(".layer-card", { hasText: "South Ferry subway / FDR service road" }), "flood layer transit status");
 
     await page.screenshot({ path: "artifacts/cityline-feature-smoke.png", fullPage: false, timeout: 90000 });
     logStep("features: screenshot saved");
