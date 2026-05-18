@@ -8,7 +8,7 @@ Turn the current polished CityLine prototype into a credible demo by tightening 
 
 - CityLine: A cinematic civic resilience prototype that moves from a photo-backed NYC flood story into a practical emergency command view.
 - Primary V1 audience: Hackathon judges and portfolio reviewers. Resident usefulness should feel credible, but V1 is a demo/prototype, not operational emergency guidance.
-- Maya Chen: The resident subject used to make the risk story personal. She anchors the route, action steps, and simulator subject state.
+- Resident profiles: Named subjects make the route story personal. South Street Seaport uses Maya Chen, Red Hook uses Nia Alvarez, and Long Island City uses Eli Park.
 - Alert -> Address -> Risk -> Route -> Act: The core resident-facing product flow. The demo should make this path clear without long explanatory copy.
 - Command simulator: The central interactive 3D stage where flood rise, subject movement, route visibility, shelters, and infrastructure status can be inspected.
 - Sector: A zoomed story area or neighborhood slice within the larger city experience. Current implemented neighborhoods are South Street Seaport, Red Hook Waterfront, and Long Island City.
@@ -29,6 +29,9 @@ Turn the current polished CityLine prototype into a credible demo by tightening 
 - Provenance UI direction: Do not place a blunt visible "prototype" or "sample scenario" banner in the main website. Prefer polished source, timestamp, status, and confidence labels that feel operational while avoiding fake "live" claims.
 - Visible source-label direction: Use generic civic desk labels in the UI, such as "Weather desk," "Transit desk," "Infrastructure desk," "Air desk," "Seismic desk," and "Health desk." Keep agency/source names for future integration docs, not static-snapshot UI labels.
 - Safety note placement: Footer/bottom strip only. Keep hero, command, and layer UI clean.
+- Hero text behavior: Hero text updates with the selected neighborhood and weather headline, stays route-first, and avoids resident names. Named residents belong in the command subject panel and simulator markers.
+- Time-label direction: Use scenario-relative ops times such as `T+08 min`, `T+2h 30m`, and `T+3h`, not real clock-style timestamps, for static seeded weather/transit snapshots.
+- Command panel wording: Use `Guidance` for resident steps instead of `Actions` to avoid sounding like official emergency commands.
 - Transit closure: A time-sensitive status item for subway, road, bridge, tunnel, or access-point disruption. It needs source, timestamp, affected asset, status, and fallback behavior.
 - Weather alert: A time-sensitive hazard notice for storm surge, rainfall, wind, heat, smoke, or air quality. It needs source, timestamp, severity, affected geography, and clear prototype framing.
 - Route wording: Use "recommended route" / "preferred route" in public UI and docs unless future verified routing data supports stronger language.

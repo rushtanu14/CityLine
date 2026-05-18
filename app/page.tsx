@@ -65,9 +65,11 @@ type RouteState = {
   startLabel: string;
   endLabel: string;
   destinationName: string;
+  residentName: string;
+  residentLabel: string;
 };
 
-type CommandMode = "status" | "actions" | "shelters" | "infra";
+type CommandMode = "status" | "guidance" | "shelters" | "infra";
 type StageView = "overview" | "route" | "shelter";
 
 const CITY_MODEL_URL = process.env.NEXT_PUBLIC_CITYLINE_CITY_MODEL_URL?.trim() ?? "";
@@ -88,7 +90,7 @@ const WATER_COLOR = "#20b7ff";
 const storyPanels = [
   {
     eyebrow: "01 / Alert",
-    title: "Maya gets the warning while the river is still quiet.",
+    title: "A resident gets the warning while the river is still quiet.",
     body: "The scene opens like a product film: the emergency signal becomes a glowing object over lower Manhattan.",
     stat: "34 min window",
   },
@@ -101,7 +103,7 @@ const storyPanels = [
   {
     eyebrow: "03 / Route",
     title: "A recommended path draws itself around the failing grid.",
-    body: "The subject stays visible while CityLine rotates from cinematic story into practical route intelligence.",
+    body: "The route stays visible while CityLine rotates from cinematic story into practical route intelligence.",
     stat: "12 min walk",
   },
 ];
@@ -114,7 +116,7 @@ const scenarioLevers = [
 
 const commandModes: Array<{ id: CommandMode; label: string }> = [
   { id: "status", label: "Status" },
-  { id: "actions", label: "Actions" },
+  { id: "guidance", label: "Guidance" },
   { id: "shelters", label: "Shelters" },
   { id: "infra", label: "Infra" },
 ];
@@ -391,6 +393,7 @@ export default function Page() {
         ? "Bundled GLB city"
         : "Detailed generated city";
   const selected = neighborhoods.find((item) => item.id === selectedNeighborhood) ?? neighborhoods[0];
+  const selectedResidentFirstName = selected.residentName.split(" ")[0] ?? selected.residentName;
   const selectedWeatherAlert = useMemo(() => getWeatherAlertFor(selected.id), [selected.id]);
   const selectedTransitClosure = useMemo(() => getTransitClosureFor(selected.id), [selected.id]);
   const selectedFacilities = useMemo(
@@ -425,8 +428,10 @@ export default function Page() {
       startLabel: route.startLabel,
       endLabel: route.endLabel,
       destinationName: destinationFacility?.name ?? fallbackFacility?.name ?? "Designated shelter",
+      residentName: selected.residentName,
+      residentLabel: selectedResidentFirstName.toUpperCase(),
     } satisfies RouteState;
-  }, [selected]);
+  }, [selected, selectedResidentFirstName]);
   const shouldRenderSimulator = motion.scroll > 0.54 || isStageExpanded || isStageFullscreen;
 
   const handlePlaybackToggle = () => {
@@ -595,13 +600,13 @@ export default function Page() {
             <span>NYC FLOOD OPS</span>
             <span>Route intelligence</span>
           </div>
-          <p className="kicker">Flash flood warning / South Street Seaport</p>
+          <p className="kicker">{selectedWeatherAlert.headline} / {selected.name}</p>
           <h1 className="editorial-title" aria-label="CityLine flood route command">
             <span>City warnings</span>
             <span>that move with the water.</span>
           </h1>
           <p className="hero-body">
-            CityLine turns one block, timed hazard status, and shelter routes into an annotated civic command view.
+            CityLine turns {selected.name}, timed hazard status, and shelter routes into an annotated civic command view.
           </p>
           <div className="hero-actions">
             <FMotion.a href="#command" onClick={handleSectionLink("command")} whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.985 }}>
@@ -690,7 +695,7 @@ export default function Page() {
               Subject
             </div>
             <div className="subject-card">
-              <span>Maya Chen</span>
+              <span>{selected.residentName}</span>
               <strong>{selected.name}</strong>
               <small>{selected.addressLabel}</small>
             </div>
@@ -896,7 +901,7 @@ export default function Page() {
               ))}
             </div>
             <p>
-              Drag the city stage to inspect the route. Press play to raise the flood and move Maya toward high ground.
+              Drag the city stage to inspect the route. Press play to raise the flood and move {selectedResidentFirstName} toward high ground.
               Recommended route for {selectedRoute.destinationName}: {selectedRoute.startLabel} → {selectedRoute.endLabel}.
             </p>
             <FMotion.button
@@ -959,7 +964,7 @@ export default function Page() {
                 </div>
               </div>
             ) : null}
-            {commandMode === "actions" ? (
+            {commandMode === "guidance" ? (
               selected.actionSteps.map((step, index) => (
                 <div className="action-row" key={step}>
                   <span>{String(index + 1).padStart(2, "0")}</span>
@@ -1237,6 +1242,8 @@ function findRouteState(selectedNeighborhoodId: string): RouteState {
     startLabel: selectedRoute.startLabel,
     endLabel: selectedRoute.endLabel,
     destinationName: destinationFacility?.name ?? "Designated shelter",
+    residentName: selected.residentName,
+    residentLabel: selected.residentName.split(" ")[0]?.toUpperCase() ?? "RESIDENT",
   };
 }
 
@@ -1860,7 +1867,7 @@ function SimulatorScene({
             anchorX="center"
             anchorY="middle"
           >
-            {isExpanded ? "MAYA / START" : "MAYA"}
+            {isExpanded ? `${sceneRouteState.residentLabel} / START` : sceneRouteState.residentLabel}
           </Text>
         </group>
         <mesh position={[1.8, 0.32, -1.38]} rotation={[Math.PI / 2, 0, 0]}>
@@ -2204,7 +2211,7 @@ function CitylineObject({
           anchorX="center"
           anchorY="middle"
         >
-          MAYA
+          {sceneRouteState.residentLabel}
         </Text>
       </group>
 

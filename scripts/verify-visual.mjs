@@ -515,10 +515,10 @@ async function verifyFeatureSmoke(browser) {
       if (element instanceof HTMLElement) element.click();
     });
     await assertVisible(page.locator(".facility-row", { hasText: "FDR Drive southbound" }), "infrastructure command mode");
-    await page.locator(".action-mode-tabs button", { hasText: "Actions" }).evaluate((element) => {
+    await page.locator(".action-mode-tabs button", { hasText: "Guidance" }).evaluate((element) => {
       if (element instanceof HTMLElement) element.click();
     });
-    await assertVisible(page.locator(".action-row", { hasText: "Leave low streets before surge peak" }), "actions command mode");
+    await assertVisible(page.locator(".action-row", { hasText: "Leave low streets before surge peak" }), "guidance command mode");
     logStep("features: command modes ready");
 
     const beforePlayback = await page.locator(".simulator-status strong").nth(2).innerText();

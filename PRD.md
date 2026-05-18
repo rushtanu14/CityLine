@@ -236,6 +236,14 @@ For static seeded snapshots, visible source labels should use generic civic desk
 
 Any safety note should live only in the footer or bottom strip, keeping the hero, command view, and layer cards clean.
 
+Static seeded snapshots should use scenario-relative ops times such as `T+08 min`, `T+2h 30m`, and `T+3h`, not real clock-style timestamps.
+
+Resident subject names should vary by neighborhood: Maya Chen for South Street Seaport, Nia Alvarez for Red Hook Waterfront, and Eli Park for Long Island City.
+
+The command panel should label resident-facing steps as `Guidance`, not `Actions`, to preserve usefulness without sounding like official emergency commands.
+
+Hero text should update with the selected neighborhood and weather headline while staying route-first and avoiding resident names. Named residents belong in the command subject panel and simulator markers.
+
 ## Data Model
 
 ### HazardLayer

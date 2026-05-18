@@ -21,6 +21,7 @@ export type NeighborhoodRisk = {
   id: string;
   name: string;
   borough: string;
+  residentName: string;
   addressLabel: string;
   scene: [number, number];
   floodDepth: string;
@@ -158,6 +159,7 @@ export const neighborhoods: NeighborhoodRisk[] = [
     id: "seaport",
     name: "South Street Seaport",
     borough: "Manhattan",
+    residentName: "Maya Chen",
     addressLabel: "19 Fulton St, New York, NY",
     scene: [-6, -3],
     floodDepth: "3.8 ft",
@@ -184,6 +186,7 @@ export const neighborhoods: NeighborhoodRisk[] = [
     id: "red-hook",
     name: "Red Hook Waterfront",
     borough: "Brooklyn",
+    residentName: "Nia Alvarez",
     addressLabel: "199 Van Brunt St, Brooklyn, NY",
     scene: [5, 5],
     floodDepth: "4.5 ft",
@@ -210,6 +213,7 @@ export const neighborhoods: NeighborhoodRisk[] = [
     id: "lic",
     name: "Long Island City",
     borough: "Queens",
+    residentName: "Eli Park",
     addressLabel: "46-01 5th St, Queens, NY",
     scene: [7, -5],
     floodDepth: "2.4 ft",
@@ -372,7 +376,7 @@ export const infrastructure: InfrastructureAsset[] = [
     riskLevel: "High",
     dependencyNotes: "East-side evacuation traffic slows if service roads flood.",
     source: "Transit desk",
-    lastUpdated: "18:22 ET",
+    lastUpdated: "T+22 min",
   },
   {
     id: "south-ferry",
@@ -382,7 +386,7 @@ export const infrastructure: InfrastructureAsset[] = [
     riskLevel: "High",
     dependencyNotes: "Stairwell flooding creates transit cutoff risk.",
     source: "Transit desk",
-    lastUpdated: "18:19 ET",
+    lastUpdated: "T+19 min",
   },
   {
     id: "battery-tunnel",
@@ -392,7 +396,7 @@ export const infrastructure: InfrastructureAsset[] = [
     riskLevel: "Medium",
     dependencyNotes: "Tunnel intake risk rises with surge timing.",
     source: "Transit desk",
-    lastUpdated: "18:21 ET",
+    lastUpdated: "T+21 min",
   },
   {
     id: "brooklyn-bridge",
@@ -402,7 +406,7 @@ export const infrastructure: InfrastructureAsset[] = [
     riskLevel: "Medium",
     dependencyNotes: "Pedestrian access remains viable but may crowd quickly.",
     source: "Transit desk",
-    lastUpdated: "18:18 ET",
+    lastUpdated: "T+18 min",
   },
   {
     id: "east-grid",
@@ -412,7 +416,7 @@ export const infrastructure: InfrastructureAsset[] = [
     riskLevel: "Medium",
     dependencyNotes: "Power reliability affects shelter and signal timing.",
     source: "Infrastructure desk",
-    lastUpdated: "18:24 ET",
+    lastUpdated: "T+24 min",
   },
   {
     id: "canal-drainage",
@@ -422,7 +426,7 @@ export const infrastructure: InfrastructureAsset[] = [
     riskLevel: "High",
     dependencyNotes: "Drainage saturation worsens street pooling.",
     source: "Infrastructure desk",
-    lastUpdated: "18:17 ET",
+    lastUpdated: "T+17 min",
   },
 ];
 
@@ -436,8 +440,8 @@ export const weatherAlerts: WeatherAlert[] = [
     affectedArea: "Lower Manhattan / East River edge",
     summary: "Surge window moves toward the Seaport edge; river-facing streets and subway entries face rapid intake risk.",
     source: "Weather desk",
-    issuedAt: "18:08 ET",
-    expiresAt: "21:00 ET",
+    issuedAt: "T+08 min",
+    expiresAt: "T+3h",
     confidence: "High",
   },
   {
@@ -449,8 +453,8 @@ export const weatherAlerts: WeatherAlert[] = [
     affectedArea: "Red Hook waterfront basin",
     summary: "Waterfront blocks near Van Brunt and Conover may pool together before inland exits fully clear.",
     source: "Weather desk",
-    issuedAt: "18:11 ET",
-    expiresAt: "21:15 ET",
+    issuedAt: "T+11 min",
+    expiresAt: "T+3h 15m",
     confidence: "High",
   },
   {
@@ -462,8 +466,8 @@ export const weatherAlerts: WeatherAlert[] = [
     affectedArea: "Long Island City waterfront",
     summary: "Heavy rain bands keep riverfront access points and bridge ramps under watch while inland routes remain open.",
     source: "Weather desk",
-    issuedAt: "18:14 ET",
-    expiresAt: "20:45 ET",
+    issuedAt: "T+14 min",
+    expiresAt: "T+2h 45m",
     confidence: "Medium-high",
   },
 ];
@@ -480,8 +484,8 @@ export const transitClosures: TransitClosure[] = [
     severity: "Warning",
     summary: "South Ferry entries and FDR service-road access are restricted as the East River surge reaches low intake points.",
     source: "Transit desk",
-    lastUpdated: "18:19 ET",
-    expiresAt: "20:30 ET",
+    lastUpdated: "T+19 min",
+    expiresAt: "T+2h 30m",
     fallbackLabel: "Use westbound walking route to high ground.",
   },
   {
@@ -495,8 +499,8 @@ export const transitClosures: TransitClosure[] = [
     severity: "Warning",
     summary: "Low underpass approaches are restricted; inland movement should happen before basin streets fill together.",
     source: "Transit desk",
-    lastUpdated: "18:23 ET",
-    expiresAt: "20:45 ET",
+    lastUpdated: "T+23 min",
+    expiresAt: "T+2h 45m",
     fallbackLabel: "Use inland PS 15 route before shoreline roads close.",
   },
   {
@@ -510,8 +514,8 @@ export const transitClosures: TransitClosure[] = [
     severity: "Watch",
     summary: "Riverfront access points remain under watch while Queens Plaza high-ground route stays preferred.",
     source: "Transit desk",
-    lastUpdated: "18:16 ET",
-    expiresAt: "20:15 ET",
+    lastUpdated: "T+16 min",
+    expiresAt: "T+2h 15m",
     fallbackLabel: "Move inland toward Queens Plaza before bridge-ramp congestion.",
   },
 ];
