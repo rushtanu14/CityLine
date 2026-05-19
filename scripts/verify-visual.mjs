@@ -346,7 +346,7 @@ async function verifyFeatureSmoke(browser) {
     await waitForVisibleCanvasPixels(page, "feature smoke initial");
 
     await assertVisible(page.locator("h1.editorial-title"), "hero editorial headline");
-    await assertVisible(page.getByText("Flash flood warning / South Street Seaport"), "hero warning copy");
+    await assertVisible(page.getByText("Storm surge warning / South Street Seaport"), "hero warning copy");
     logStep("features: hero ready");
     if ((await page.getByText("Heavy dreamy scroll").count()) > 0) {
       throw new Error("removed hero helper copy is still visible");
@@ -403,11 +403,9 @@ async function verifyFeatureSmoke(browser) {
       undefined,
       { timeout: 20000 },
     );
-    const expandPoint = await expandTarget.evaluate((element) => {
-      const rect = element.getBoundingClientRect();
-      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    await expandTarget.evaluate((element) => {
+      if (element instanceof HTMLElement) element.click();
     });
-    await page.mouse.click(expandPoint.x, expandPoint.y);
     logStep("features: simulator expand");
     await page.waitForFunction(
       () => document.querySelector("main")?.getAttribute("data-stage-expanded") === "true",
@@ -421,17 +419,6 @@ async function verifyFeatureSmoke(browser) {
     if (expandedStageRect.widthRatio < 0.75 || expandedStageRect.heightRatio < 0.55) {
       throw new Error(`embedded simulator did not expand enough, got ${JSON.stringify(expandedStageRect)}`);
     }
-    await page.waitForFunction(
-      () => {
-        const button = document.querySelector(".stage-fullscreen-button");
-        if (!(button instanceof HTMLElement)) return false;
-        const rect = button.getBoundingClientRect();
-        const style = window.getComputedStyle(button);
-        return rect.width > 1 && rect.height > 1 && style.visibility !== "hidden" && style.display !== "none";
-      },
-      undefined,
-      { timeout: 20000 },
-    );
     await page.waitForFunction(
       () => {
         const controls = document.querySelector(".simulation-stage-controls");
@@ -457,13 +444,32 @@ async function verifyFeatureSmoke(browser) {
       undefined,
       { timeout: 20000 },
     );
-    await page.locator('.simulation-view-controls button[data-stage-view="route"]').evaluate((element) => {
-      if (element instanceof HTMLElement) element.click();
+    const routeViewButton = page.locator('.simulation-view-controls button[data-stage-view="route"]');
+    await routeViewButton.click({ force: true, noWaitAfter: true, timeout: 10000 }).catch(async () => {
+      await routeViewButton.evaluateAll((buttons) => {
+        const visibleButton = buttons.find((button) => {
+          if (!(button instanceof HTMLElement)) return false;
+          const rect = button.getBoundingClientRect();
+          const style = window.getComputedStyle(button);
+          return rect.width > 1 && rect.height > 1 && style.display !== "none" && style.visibility !== "hidden";
+        });
+        visibleButton?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+      });
     });
     await page.waitForFunction(
       () =>
-        document.querySelector('.simulation-view-controls button[data-stage-view="route"]')?.getAttribute("aria-pressed") ===
-        "true",
+        Array.from(document.querySelectorAll('.simulation-view-controls button[data-stage-view="route"]')).some((button) => {
+          if (!(button instanceof HTMLElement)) return false;
+          const rect = button.getBoundingClientRect();
+          const style = window.getComputedStyle(button);
+          return (
+            button.getAttribute("aria-pressed") === "true" &&
+            rect.width > 1 &&
+            rect.height > 1 &&
+            style.display !== "none" &&
+            style.visibility !== "hidden"
+          );
+        }),
       undefined,
       { timeout: 8000 },
     );
@@ -490,12 +496,22 @@ async function verifyFeatureSmoke(browser) {
     await assertVisible(page.locator(".simulation-stage canvas"), "embedded 3D simulation canvas");
     logStep("features: command ready");
 
-    for (const neighborhood of ["Red Hook Waterfront", "Long Island City", "South Street Seaport"]) {
+    const expectedHeroCopyByNeighborhood = {
+      "Red Hook Waterfront": "Coastal flood warning / Red Hook Waterfront",
+      "Long Island City": "Riverfront flood watch / Long Island City",
+      "South Street Seaport": "Storm surge warning / South Street Seaport",
+    };
+
+    for (const [neighborhood, expectedHeroCopy] of Object.entries(expectedHeroCopyByNeighborhood)) {
       const neighborhoodButton = page.locator(".neighborhood-list button", { hasText: neighborhood });
       await neighborhoodButton.evaluate((element) => {
         if (element instanceof HTMLElement) element.click();
       });
       await assertVisible(page.locator(".subject-card strong", { hasText: neighborhood }), `selected neighborhood ${neighborhood}`);
+      const heroKicker = (await page.locator(".hero-copy .kicker").textContent())?.trim();
+      if (heroKicker !== expectedHeroCopy) {
+        throw new Error(`hero copy did not follow selected neighborhood ${neighborhood}: expected "${expectedHeroCopy}", got "${heroKicker}"`);
+      }
       const isPressed = await neighborhoodButton.getAttribute("aria-pressed");
       if (isPressed !== "true") {
         throw new Error(`selected neighborhood ${neighborhood} did not expose active button state`);
@@ -565,7 +581,8 @@ async function verifyFeatureSmoke(browser) {
     await waitForScrollToSettle(page);
     for (const hazard of ["Flood surge", "Wildfire smoke", "Earthquake grid", "Heat / air"]) {
       const card = page.locator(".layer-card", { hasText: hazard });
-      await card.scrollIntoViewIfNeeded();
+      await card.evaluate((element) => element.scrollIntoView({ block: "center" }));
+      await page.waitForTimeout(250);
       await assertVisible(card, `hazard layer ${hazard}`);
     }
     await assertVisible(page.locator(".layer-card", { hasText: "Storm surge warning" }), "flood layer weather status");

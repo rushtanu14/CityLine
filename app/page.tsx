@@ -182,6 +182,7 @@ export default function Page() {
   const [stageResetNonce, setStageResetNonce] = useState(0);
   const playbackRef = useRef<{ startedAt: number; startFlood: number; startSim: number } | null>(null);
   const simulationStageRef = useRef<HTMLDivElement | null>(null);
+  const wasStageOpenRef = useRef(false);
 
   useEffect(() => {
     const updateMobile = () => {
@@ -343,6 +344,15 @@ export default function Page() {
 
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
+  }, [isStageExpanded, isStageFullscreen]);
+
+  useEffect(() => {
+    const isStageOpen = isStageExpanded || isStageFullscreen;
+    if (isStageOpen && !wasStageOpenRef.current) {
+      setStageView("route");
+      setStageResetNonce((current) => current + 1);
+    }
+    wasStageOpenRef.current = isStageOpen;
   }, [isStageExpanded, isStageFullscreen]);
 
   useEffect(() => {
